@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Raute</title>
+<meta name="description" content="Read Markdown with formulas. Runs entirely in your browser and works offline.">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#171c24" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="vendor/fonts.css">
+<link rel="stylesheet" href="vendor/katex.min.css">
+<style>
+  /* Layout: one-screen tool. Slim bar on top, source and preview side by side
+     (stacked on a phone), a counts line at the bottom. */
+  :root {
+    --bg: #eef1f4;
+    --surface: #ffffff;
+    --ink: #18212e;
+    --muted: #5a6677;
+    --rule: #d5dbe3;
+    --code-bg: #e9edf2;
+    --accent: #0d6b68;
+    --accent-ink: #ffffff;
+    --error: #b3261e;
+
+    --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+    --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10141a;
+      --surface: #171c24;
+      --ink: #e3e8ee;
+      --muted: #95a1b1;
+      --rule: #2a323e;
+      --code-bg: #212833;
+      --accent: #5fc9c0;
+      --accent-ink: #0c1418;
+      --error: #ff8f85;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10141a;
+    --surface: #171c24;
+    --ink: #e3e8ee;
+    --muted: #95a1b1;
+    --rule: #2a323e;
+    --code-bg: #212833;
+    --accent: #5fc9c0;
+    --accent-ink: #0c1418;
+    --error: #ff8f85;
+    color-scheme: dark;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  html { padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); }
+  img { max-width: 100%; }
+  body {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- top bar ---------- */
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--surface);
+  }
+  .name {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .name span { color: var(--accent); font-family: var(--font-mono); font-weight: 600; margin-right: 6px; }
+  .file {
+    min-width: 0;
+    flex: 1 1 120px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+  button, .file-btn {
+    font: inherit;
+    font-size: 13.5px;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    line-height: 1.3;
+  }
+  button:hover, .file-btn:hover { border-color: var(--muted); }
+  .file-btn { display: inline-block; background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+  .file-btn:hover { border-color: var(--accent); filter: brightness(1.08); }
+  .file-btn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  .seg { display: flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; padding: 6px 11px; color: var(--muted); }
+  .seg button + button { border-left: 1px solid var(--rule); }
+  .seg button[aria-pressed="true"] { background: var(--code-bg); color: var(--ink); font-weight: 700; }
+  .seg button:focus-visible { outline-offset: -2px; }
+
+  /* ---------- panes ---------- */
+  main {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  main[data-view="source"], main[data-view="preview"] { grid-template-columns: minmax(0, 1fr); }
+  main[data-view="source"] .preview { display: none; }
+  main[data-view="preview"] .source { display: none; }
+
+  .source {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    resize: none;
+    border: 0;
+    border-right: 1px solid var(--rule);
+    padding: 20px 16px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    line-height: 1.65;
+    tab-size: 2;
+  }
+  .source:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+  .source::placeholder { color: var(--muted); }
+  main[data-view="source"] .source { border-right: 0; }
+
+  .preview { min-height: 0; overflow-y: auto; background: var(--surface); padding: 24px 16px 48px; }
+  .md { max-width: 68ch; margin-inline: auto; font-size: 16.5px; line-height: 1.62; overflow-wrap: break-word; }
+  .empty { max-width: 68ch; margin: 0 auto; color: var(--muted); }
+
+  /* ---------- rendered markdown ---------- */
+  .md > :first-child { margin-top: 0; }
+  .md > :last-child { margin-bottom: 0; }
+  .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 {
+    font-family: var(--font-display);
+    line-height: 1.2;
+    letter-spacing: -0.012em;
+    text-wrap: balance;
+    margin: 1.7em 0 0.5em;
+  }
+  .md h1 { font-size: 2em; font-weight: 700; }
+  .md h2 { font-size: 1.45em; font-weight: 700; padding-bottom: 0.25em; border-bottom: 1px solid var(--rule); }
+  .md h3 { font-size: 1.18em; font-weight: 600; }
+  .md h4, .md h5, .md h6 { font-size: 1em; font-weight: 600; }
+  .md h6 { color: var(--muted); }
+  .md p, .md ul, .md ol, .md blockquote, .md pre, .md .table-wrap { margin: 0 0 1em; }
+  .md ul, .md ol { padding-left: 1.5em; }
+  .md li + li { margin-top: 0.25em; }
+  .md li > ul, .md li > ol { margin: 0.25em 0 0; }
+  .md li:has(> input[type="checkbox"]) { list-style: none; margin-left: -1.4em; }
+  .md li > input[type="checkbox"] { margin: 0 0.5em 0 0; accent-color: var(--accent); }
+  .md a { color: var(--accent); text-underline-offset: 2px; }
+  .md blockquote { padding: 2px 0 2px 16px; border-left: 3px solid var(--accent); color: var(--muted); }
+  .md blockquote > :last-child { margin-bottom: 0; }
+  .md code { font-family: var(--font-mono); font-size: 0.86em; background: var(--code-bg); padding: 0.12em 0.36em; border-radius: 4px; }
+  .md pre { background: var(--code-bg); padding: 14px 16px; border-radius: 6px; overflow-x: auto; line-height: 1.55; }
+  .md pre code { background: none; padding: 0; font-size: 0.82em; }
+  .md hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+  .md img { max-width: 100%; height: auto; }
+  .md .table-wrap { overflow-x: auto; }
+  .md table { border-collapse: collapse; font-size: 0.93em; font-variant-numeric: tabular-nums; }
+  .md th, .md td { border: 1px solid var(--rule); padding: 6px 12px; text-align: left; vertical-align: top; }
+  .md th { background: var(--code-bg); font-weight: 700; }
+
+  /* formulas: a wide one scrolls inside its own box */
+  .md .math-block { margin: 0 0 1em; padding-block: 4px; overflow-x: auto; overflow-y: hidden; }
+  .md .math-block .katex-display { margin: 0; }
+  .md .math-inline .katex-display { overflow-x: auto; overflow-y: hidden; padding-block: 4px; }
+  .md .katex-error { color: var(--error) !important; font-family: var(--font-mono); font-size: 0.86em; }
+  .md .math-raw { font-family: var(--font-mono); font-size: 0.86em; }
+
+  /* ---------- status line ---------- */
+  .status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px 16px;
+    padding: 6px 16px;
+    border-top: 1px solid var(--rule);
+    background: var(--surface);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .status button { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; }
+
+  /* ---------- drop target ---------- */
+  .drop {
+    position: fixed;
+    inset: 12px;
+    display: grid;
+    place-items: center;
+    border: 2px dashed var(--accent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 600;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  @media (max-width: 720px) {
+    main { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+    main[data-view="source"], main[data-view="preview"] { grid-template-rows: minmax(0, 1fr); }
+    .source { border-right: 0; border-bottom: 1px solid var(--rule); font-size: 16px; padding: 16px; }
+    main[data-view="source"] .source { border-bottom: 0; }
+    .preview { padding: 20px 16px 40px; }
+    .md { font-size: 16px; }
+    .file { flex-basis: 100%; order: 3; }
+  }
+
+  /* ---------- printing: only the rendered document, on white ---------- */
+  @page { margin: 18mm; }
+  @media print {
+    :root:root:root {
+      --bg: #ffffff;
+      --surface: #ffffff;
+      --ink: #000000;
+      --muted: #444444;
+      --rule: #bbbbbb;
+      --code-bg: #f1f1f1;
+      --accent: #0d6b68;
+      --accent-ink: #ffffff;
+      --error: #b3261e;
+      color-scheme: light;
+    }
+    html, body { height: auto; }
+    html { padding: 0; }
+    body { display: block; }
+    .bar, .source, .status, .drop { display: none !important; }
+    main, main[data-view] { display: block; }
+    main[data-view="source"] .preview { display: block; }
+    .preview { overflow: visible; padding: 0; }
+    .md { max-width: none; font-size: 11pt; }
+    .md pre { white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; border: 1px solid var(--rule); }
+    .md .table-wrap, .md .math-block, .md .math-inline .katex-display { overflow: visible; }
+    .md pre, .md blockquote, .md tr, .md img, .md .math-block { break-inside: avoid; }
+    .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { break-after: avoid; }
+    .md a { color: inherit; }
+  }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <h1 class="name"><span aria-hidden="true">#</span>Raute</h1>
+  <div class="file" id="file-name" title="">sample.md (example)</div>
+  <div class="controls">
+    <label class="file-btn" for="file-input">Open file
+      <input class="visually-hidden" type="file" id="file-input" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain">
+    </label>
+    <button type="button" id="clear-btn">Clear</button>
+    <div class="seg" role="group" aria-label="View">
+      <button type="button" id="view-source" data-view="source" aria-pressed="false">Source</button>
+      <button type="button" id="view-split" data-view="split" aria-pressed="true">Split</button>
+      <button type="button" id="view-preview" data-view="preview" aria-pressed="false">Preview</button>
+    </div>
+  </div>
+</header>
+
+<main id="panes" data-view="split">
+  <textarea class="source" id="source" spellcheck="false" aria-label="Markdown source" placeholder="Type or paste Markdown here, or drop a .md file anywhere on the page."></textarea>
+  <section class="preview" id="preview" aria-label="Rendered preview" aria-live="off">
+    <p class="empty" id="empty" hidden>Nothing to preview yet. Type Markdown in the source pane, or open a file.</p>
+    <article class="md" id="output"></article>
+  </section>
+</main>
+
+<footer class="status">
+  <span id="counts">0 words</span>
+  <span id="notice-wrap"><span id="notice"></span> <button type="button" id="undo-btn" hidden>Undo clear</button></span>
+</footer>
+
+<div class="drop" id="drop" hidden>Drop the file to open it</div>
+
+<script type="text/markdown" id="sample"># Raute
+
+A Markdown viewer with formulas. Type or paste Markdown in the source pane and read the result in the preview. This sample shows what renders. Replace it with your own text, or open a file.
+
+## What it handles
+
+- **Bold**, *italic*, ~~strikethrough~~ and `inline code`
+- [Links](https://commonmark.org/help/) that open in a new tab
+- Nested lists
+  - like this one
+- Task lists
+  - [x] Paste some text
+  - [ ] Open a `.md` file
+
+## Code
+
+```js
+function greet(name) {
+  return `Hello, ${name}!`;
+}
+```
+
+## Formulas
+
+Put inline math between single dollar signs, like $e^{i\pi} + 1 = 0$ or $a^2 + b^2 = c^2$. A formula on its own line goes between double dollar signs:
+
+$$
+\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}
+$$
+
+$$
+\bar{x} = \frac{1}{n}\sum_{i=1}^{n} x_i
+\qquad
+\sigma = \sqrt{\frac{1}{n}\sum_{i=1}^{n}\left(x_i - \bar{x}\right)^2}
+$$
+
+Prices such as $5 and $10 stay as plain text.
+
+## Tables
+
+| You type    | You get         |
+| ----------- | --------------- |
+| `# Title`   | Heading 1       |
+| `> note`    | Blockquote      |
+| `$x^2$`     | $x^2$           |
+| `---`       | Horizontal rule |
+
+> Your text stays in this browser. Nothing is uploaded.
+
+---
+
+Drop a `.md` file anywhere on the page to open it. After the first visit this app works without an internet connection, and you can install it from your browser's menu.
+</script>
+
+<script src="vendor/marked.min.js"></script>
+<script src="vendor/purify.min.js"></script>
+<script src="vendor/katex.min.js"></script>
+<script>
+(function () {
+  var STORE_KEY = 'raute-draft';
+  var SAMPLE = document.getElementById('sample').textContent.replace(/^\n/, '');
+
+  var source = document.getElementById('source');
+  var output = document.getElementById('output');
+  var empty = document.getElementById('empty');
+  var panes = document.getElementById('panes');
+  var fileName = document.getElementById('file-name');
+  var counts = document.getElementById('counts');
+  var notice = document.getElementById('notice');
+  var undoBtn = document.getElementById('undo-btn');
+  var drop = document.getElementById('drop');
+  var fileInput = document.getElementById('file-input');
+  var viewButtons = document.querySelectorAll('.seg button');
+
+  var state = { text: SAMPLE, name: 'sample.md (example)', view: 'split' };
+  var cleared = null;
+  var canRender = typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined';
+
+  var hasKatex = typeof katex !== 'undefined';
+
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/"/g, '&quot;');
+  }
+
+  /* ---------- formulas ----------
+     The Markdown parser leaves a placeholder for each formula; KaTeX fills
+     the placeholders in after the HTML has been sanitized. */
+  var INLINE_MATH = [
+    { re: /^\$\$([^\n]+?)\$\$/, display: true },
+    { re: /^\$((?:\\[^\n]|[^\\\n$\s])(?:(?:\\[^\n]|[^\\\n$])*?(?:\\[^\n]|[^\\\n$\s]))?)\$(?![\w$])/, display: false },
+    { re: /^\\\((.+?)\\\)/, display: false },
+    { re: /^\\\[(.+?)\\\]/, display: true }
+  ];
+  var BLOCK_MATH = /^ {0,3}(?:\$\$((?:(?!\$\$|\n[ \t]*\n)[\s\S])+?)\$\$|\\\[((?:(?!\\\]|\n[ \t]*\n)[\s\S])+?)\\\])[ \t]*(?:\n+|$)/;
+
+  function matchInlineMath(src) {
+    for (var i = 0; i < INLINE_MATH.length; i++) {
+      var m = INLINE_MATH[i].re.exec(src);
+      if (m) return { raw: m[0], text: m[1].trim(), display: INLINE_MATH[i].display };
+    }
+    return null;
+  }
+
+  var mathExtension = {
+    extensions: [
+      {
+        name: 'mathBlock',
+        level: 'block',
+        start: function (src) {
+          var m = /(^|\n) {0,3}(?:\$\$|\\\[)/.exec(src);
+          if (m) return m.index + m[1].length;
+        },
+        tokenizer: function (src) {
+          var m = BLOCK_MATH.exec(src);
+          if (m) return { type: 'mathBlock', raw: m[0], text: (m[1] || m[2]).trim() };
+        },
+        renderer: function (token) {
+          return '<div class="math-block" data-tex="' + escapeAttr(token.text) + '"></div>\n';
+        }
+      },
+      {
+        name: 'mathInline',
+        level: 'inline',
+        start: function (src) {
+          var i = 0;
+          while (i < src.length) {
+            var j = src.slice(i).search(/\$|\\[(\[]/);
+            if (j < 0) return;
+            i += j;
+            if ((i === 0 || src.charAt(i - 1) !== '\\') && matchInlineMath(src.slice(i))) return i;
+            i += 1;
+          }
+        },
+        tokenizer: function (src) {
+          var m = matchInlineMath(src);
+          if (m) return { type: 'mathInline', raw: m.raw, text: m.text, display: m.display };
+        },
+        renderer: function (token) {
+          return '<span class="math-inline" data-tex="' + escapeAttr(token.text) + '"' +
+            (token.display ? ' data-display="1"' : '') + '></span>';
+        }
+      }
+    ]
+  };
+  if (canRender) marked.use(mathExtension);
+
+  var mathCache = new Map();
+  function typeset(root) {
+    root.querySelectorAll('[data-tex]').forEach(function (el) {
+      var tex = el.getAttribute('data-tex');
+      var display = el.classList.contains('math-block') || el.hasAttribute('data-display');
+      if (!hasKatex) {
+        el.classList.add('math-raw');
+        el.textContent = display ? '$$' + tex + '$$' : '$' + tex + '$';
+        return;
+      }
+      var key = (display ? 'D' : 'I') + tex;
+      var html = mathCache.get(key);
+      if (html === undefined) {
+        try {
+          html = katex.renderToString(tex, { displayMode: display, throwOnError: false });
+        } catch (e) {
+          html = '<span class="katex-error">' + escapeHtml(tex) + '</span>';
+        }
+        if (mathCache.size > 500) mathCache.clear();
+        mathCache.set(key, html);
+      }
+      el.innerHTML = html;
+    });
+  }
+
+  function render() {
+    var text = state.text;
+    var blank = text.trim() === '';
+    empty.hidden = !blank;
+    output.hidden = blank;
+
+    if (blank) {
+      output.innerHTML = '';
+    } else if (canRender) {
+      var html = DOMPurify.sanitize(marked.parse(text, { gfm: true }));
+      output.innerHTML = html;
+      typeset(output);
+      output.querySelectorAll('a[href]').forEach(function (a) {
+        if (a.getAttribute('href').charAt(0) !== '#') {
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+        }
+      });
+      output.querySelectorAll('table').forEach(function (t) {
+        var wrap = document.createElement('div');
+        wrap.className = 'table-wrap';
+        t.parentNode.insertBefore(wrap, t);
+        wrap.appendChild(t);
+      });
+    } else {
+      output.innerHTML = '<pre><code>' + escapeHtml(text) + '</code></pre>';
+    }
+
+    var words = blank ? 0 : text.trim().split(/\s+/).length;
+    var lines = text === '' ? 0 : text.split('\n').length;
+    var minutes = Math.max(1, Math.round(words / 200));
+    counts.textContent = blank
+      ? '0 words'
+      : words.toLocaleString() + (words === 1 ? ' word' : ' words') + ' · ' +
+        text.length.toLocaleString() + ' characters · ' +
+        lines.toLocaleString() + (lines === 1 ? ' line' : ' lines') + ' · ' +
+        minutes + ' min read';
+  }
+
+  function setView(view) {
+    state.view = view;
+    panes.dataset.view = view;
+    viewButtons.forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.view === view));
+    });
+    save();
+  }
+
+  function setName(name) {
+    state.name = name;
+    fileName.textContent = name;
+    fileName.title = name;
+  }
+
+  function setNotice(msg, showUndo) {
+    notice.textContent = msg || '';
+    undoBtn.hidden = !showUndo;
+  }
+
+  var saveTimer = null;
+  function save() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () {
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* storage unavailable */ }
+    }, 300);
+  }
+
+  function load(text, name) {
+    state.text = text;
+    source.value = text;
+    setName(name);
+    render();
+    save();
+  }
+
+  function openFile(file) {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setNotice(file.name + ' is larger than 5 MB. Open a smaller file.', false);
+      return;
+    }
+    file.text().then(function (text) {
+      cleared = null;
+      load(text, file.name);
+      setNotice('Opened ' + file.name, false);
+      document.getElementById('preview').scrollTop = 0;
+    }).catch(function () {
+      setNotice('Could not read ' + file.name + '. Try a plain text or .md file.', false);
+    });
+  }
+
+  var frame = 0;
+  source.addEventListener('input', function () {
+    state.text = source.value;
+    if (state.name === 'sample.md (example)') setName('Untitled');
+    if (cleared) { cleared = null; setNotice('', false); }
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(render);
+    save();
+  });
+
+  source.addEventListener('keydown', function (e) {
+    if (e.key !== 'Tab' || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
+    e.preventDefault();
+    var s = source.selectionStart;
+    source.setRangeText('  ', s, source.selectionEnd, 'end');
+    source.dispatchEvent(new Event('input'));
+  });
+
+  fileInput.addEventListener('change', function () {
+    openFile(fileInput.files[0]);
+    fileInput.value = '';
+  });
+
+  document.getElementById('clear-btn').addEventListener('click', function () {
+    if (state.text === '') return;
+    cleared = { text: state.text, name: state.name };
+    load('', 'Untitled');
+    setNotice('Cleared.', true);
+    source.focus();
+  });
+
+  undoBtn.addEventListener('click', function () {
+    if (!cleared) return;
+    load(cleared.text, cleared.name);
+    cleared = null;
+    setNotice('Restored.', false);
+  });
+
+  viewButtons.forEach(function (b) {
+    b.addEventListener('click', function () { setView(b.dataset.view); });
+  });
+
+  var dragDepth = 0;
+  function hasFiles(e) {
+    return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') !== -1;
+  }
+  window.addEventListener('dragenter', function (e) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth++;
+    drop.hidden = false;
+  });
+  window.addEventListener('dragover', function (e) {
+    if (hasFiles(e)) e.preventDefault();
+  });
+  window.addEventListener('dragleave', function (e) {
+    if (!hasFiles(e)) return;
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0) drop.hidden = true;
+  });
+  window.addEventListener('drop', function (e) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth = 0;
+    drop.hidden = true;
+    openFile(e.dataTransfer.files[0]);
+  });
+
+  function start(data) {
+    var saved = data && typeof data.text === 'string' ? data : null;
+    if (!saved) {
+      try {
+        var raw = localStorage.getItem(STORE_KEY);
+        var parsed = raw ? JSON.parse(raw) : null;
+        if (parsed && typeof parsed.text === 'string') saved = parsed;
+      } catch (e) { /* storage unavailable */ }
+    }
+    if (saved) {
+      var isSample = saved.name === 'sample.md (example)';
+      state.text = isSample ? SAMPLE : saved.text;
+      state.name = typeof saved.name === 'string' ? saved.name : 'Untitled';
+      if (saved.view === 'source' || saved.view === 'split' || saved.view === 'preview') state.view = saved.view;
+    }
+    source.value = state.text;
+    setName(state.name);
+    setView(state.view);
+    render();
+    if (!canRender) setNotice('The Markdown renderer did not load, so the preview shows plain text.', false);
+    else if (!hasKatex) setNotice('The formula renderer did not load, so formulas show as TeX source.', false);
+  }
+
+  start(null);
+
+  /* Installed app: a .md file opened with it from the file manager lands here. */
+  if ('launchQueue' in window) {
+    window.launchQueue.setConsumer(function (params) {
+      if (params.files && params.files.length) params.files[0].getFile().then(openFile);
+    });
+  }
+
+  /* Offline support. Needs http(s); opening index.html straight from disk works without it. */
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () { /* the app still works online */ });
+    });
+  }
+})();
+</script>
+</body>
+</html>
