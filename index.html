@@ -20,6 +20,9 @@
   } catch (e) { /* storage unavailable: follow the system */ }
 </script>
 <style>
+/* Raute's own styles sit in a layer, so styles from an opened document
+   (which are unlayered) win inside the preview. */
+@layer app {
   /* Layout: one-screen tool. Slim bar on top, source and preview side by side
      (stacked on a phone), a counts line at the bottom. */
   :root {
@@ -371,6 +374,7 @@
     .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { break-after: avoid; }
     .md a { color: inherit; }
   }
+}
 </style>
 </head>
 <body>
@@ -1083,6 +1087,36 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     return { meta: m[2] || '', body: text.slice(m[0].length) };
   }
 
+  /* ---------- styles from the document ----------
+     <style> blocks in the Markdown apply to the preview only (and to printing).
+     They cannot reach Raute's own controls, and nothing is loaded from outside. */
+  var canScope = typeof CSSStyleSheet === 'function' && 'replaceSync' in CSSStyleSheet.prototype &&
+    'adoptedStyleSheets' in document && typeof window.CSSScopeRule === 'function';
+  var docSheet = canScope ? new CSSStyleSheet() : null;
+  var docCssApplied = '';
+  if (docSheet) document.adoptedStyleSheets = document.adoptedStyleSheets.concat(docSheet);
+
+  function collectStyles(html, into) {
+    var re = /<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi, m;
+    while ((m = re.exec(html))) into.push(m[1]);
+  }
+
+  function applyDocStyles(list) {
+    var css = list.join('\n');
+    if (!docSheet || css === docCssApplied) return;
+    docCssApplied = css;
+    var parsed = new CSSStyleSheet(), page = [], scoped = [];
+    try { parsed.replaceSync(css); } catch (e) { /* unreadable CSS: ignore it */ }
+    Array.prototype.forEach.call(parsed.cssRules, function (rule) {
+      var text = rule.cssText;
+      if (/url\(\s*(?!["']?data:)/i.test(text)) return;          // would load a file
+      if (rule instanceof CSSPageRule) page.push(text);              // paper size and margins
+      else if (rule instanceof CSSStyleRule || rule instanceof CSSMediaRule ||
+               rule instanceof CSSSupportsRule) scoped.push(text);   // everything else is dropped (@import, @font-face, …)
+    });
+    docSheet.replaceSync(page.join('\n') + (scoped.length ? '\n@scope (#output) {\n' + scoped.join('\n') + '\n}' : ''));
+  }
+
   function render() {
     var text = state.text;
     var parts = splitFrontMatter(text);
@@ -1092,12 +1126,18 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     output.hidden = blank;
 
     if (blank) {
+      applyDocStyles([]);
       output.innerHTML = '';
     } else if (canRender) {
       /* Built off-screen first, so pictures are pointed at the right files before anything loads. */
       var meta = parts.meta === null ? '' :
         '<details class="front-matter"><summary>Front matter</summary><pre><code>' + escapeHtml(parts.meta) + '</code></pre></details>';
-      tpl.innerHTML = DOMPurify.sanitize(meta + marked.parse(parts.body, { gfm: true }));
+      var docCss = [];
+      var html = marked.parse(parts.body, { gfm: true, walkTokens: function (token) {
+        if (token.type === 'html') collectStyles(token.text, docCss);
+      } });
+      applyDocStyles(docCss);
+      tpl.innerHTML = DOMPurify.sanitize(meta + html);
       var frag = tpl.content;
       typeset(frag);
       var pending = linkAssets(frag);
