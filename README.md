@@ -78,6 +78,21 @@ click. A folder that was moved or deleted drops off the list.
 When you change any file, also change `VERSION` at the top of `sw.js`.
 Browsers then fetch fresh copies instead of using their saved ones.
 
+## Tests
+
+```bash
+node tests/run.mjs
+```
+
+This starts a small local web server and a headless Edge (or Chrome) with a
+throwaway profile, runs every suite in `tests/`, and cleans up afterwards. It
+needs Node 22 or newer. Set `RAUTE_BROWSER` to pick a different browser
+binary. File and folder dialogs cannot open in a headless browser, so the
+tests use stand-ins for them; the real dialogs and Edge's permission
+questions still need a quick check by hand. Firefox is not covered: the
+tests drive the browser through Chrome's DevTools protocol, and the file
+features need Edge or Chrome anyway.
+
 ## What is inside
 
 - `index.html`: the app (page, styles and script)
@@ -87,6 +102,7 @@ Browsers then fetch fresh copies instead of using their saved ones.
   KaTeX 0.16.9 (MIT) and the font styles
 - `fonts/`: KaTeX fonts plus Atkinson Hyperlegible, Bricolage Grotesque and
   JetBrains Mono (all under the SIL Open Font License)
+- `tests/`: browser tests (not part of the app; see Tests above)
 
 ## Licenses of the bundled parts
 
