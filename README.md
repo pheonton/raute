@@ -24,6 +24,10 @@ resolves relative paths such as `images/plot.png` inside that folder, lists
 the folder's Markdown files in the top bar, and follows links between them.
 Hidden folders and `node_modules` are skipped.
 
+If you then open a file that is not in that folder, the folder is set aside:
+the top bar shows only that file, and a **Back to** button returns to the
+folder.
+
 In Chrome and Edge the folder is remembered between visits; after a restart
 the browser may ask you to confirm access again. Firefox and Safari can open a
 folder too, but do not remember it.
