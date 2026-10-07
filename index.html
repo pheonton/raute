@@ -12,6 +12,13 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="stylesheet" href="vendor/fonts.css">
 <link rel="stylesheet" href="vendor/katex.min.css">
+<script>
+  /* A chosen light or dark theme is applied before the page draws, so it does not flash. */
+  try {
+    var savedTheme = localStorage.getItem('raute-theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') document.documentElement.dataset.theme = savedTheme;
+  } catch (e) { /* storage unavailable: follow the system */ }
+</script>
 <style>
   /* Layout: one-screen tool. Slim bar on top, source and preview side by side
      (stacked on a phone), a counts line at the bottom. */
@@ -95,7 +102,7 @@
   .name span { color: var(--accent); font-family: var(--font-mono); font-weight: 600; margin-right: 6px; }
   .file {
     min-width: 0;
-    flex: 1 1 120px;
+    flex: 0 1 auto;
     font-family: var(--font-mono);
     font-size: 12.5px;
     color: var(--muted);
@@ -105,7 +112,7 @@
   }
   .folder {
     min-width: 0;
-    flex: 1 1 160px;
+    flex: 0 1 auto;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -137,6 +144,26 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  /* save state of the open file */
+  .save {
+    flex: 0 1 auto;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .save:has(#save-note:empty) { display: none; }
+  .save button { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; margin-left: 4px; }
+
+  /* note about linked images, right after the file name */
+  .asset {
+    flex: 1 1 200px;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .asset button { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; margin-left: 4px; }
   .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
   button, .file-btn {
@@ -233,6 +260,9 @@
   .md code { font-family: var(--font-mono); font-size: 0.86em; background: var(--code-bg); padding: 0.12em 0.36em; border-radius: 4px; }
   .md pre { background: var(--code-bg); padding: 14px 16px; border-radius: 6px; overflow-x: auto; line-height: 1.55; }
   .md pre code { background: none; padding: 0; font-size: 0.82em; }
+  .md .front-matter { margin: 0 0 1.5em; border: 1px solid var(--rule); border-radius: 6px; font-size: 0.85em; }
+  .md .front-matter summary { padding: 4px 10px; color: var(--muted); font-family: var(--font-mono); cursor: pointer; }
+  .md .front-matter pre { margin: 0; border-radius: 0 0 6px 6px; }
   .md hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
   .md img { max-width: 100%; height: auto; }
   .md .table-wrap { overflow-x: auto; }
@@ -290,6 +320,9 @@
     .md { font-size: 16px; }
     .file, .folder { flex-basis: 100%; order: 3; }
     .aside-btn { order: 3; max-width: 100%; }
+    .asset { order: 3; flex-basis: 100%; }
+    .save { order: 3; flex-basis: 100%; }
+    .asset:empty, .asset:has(#asset-note:empty) { display: none; }
   }
 
   /* ---------- printing: only the rendered document, on white ---------- */
@@ -310,7 +343,7 @@
     html, body { height: auto; }
     html { padding: 0; }
     body { display: block; }
-    .bar, .source, .status, .drop { display: none !important; }
+    .bar, .source, .status, .drop, .md .front-matter { display: none !important; }
     main, main[data-view] { display: block; }
     main[data-view="source"] .preview { display: block; }
     .preview { overflow: visible; padding: 0; }
@@ -333,6 +366,8 @@
     <select id="folder-select" aria-label="Markdown files in the open folder"></select>
   </div>
   <button type="button" class="aside-btn" id="aside-btn" hidden></button>
+  <div class="save" id="save-box"><span id="save-note"></span> <button type="button" id="save-btn" hidden>Save</button> <button type="button" id="reload-btn" hidden>Reload</button></div>
+  <div class="asset" id="asset-wrap"><span id="asset-note"></span> <button type="button" id="asset-btn" hidden></button></div>
   <div class="controls">
     <label class="file-btn" for="file-input">Open file
       <input class="visually-hidden" type="file" id="file-input" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain">
@@ -345,6 +380,7 @@
       <button type="button" id="view-split" data-view="split" aria-pressed="true">Split</button>
       <button type="button" id="view-preview" data-view="preview" aria-pressed="false">Preview</button>
     </div>
+    <button type="button" id="theme-btn">◐ Auto</button>
   </div>
 </header>
 
@@ -358,7 +394,6 @@
 
 <footer class="status">
   <span id="counts">0 words</span>
-  <span id="asset-wrap"><span id="asset-note"></span> <button type="button" id="asset-btn" hidden></button></span>
   <span id="notice-wrap"><span id="notice"></span> <button type="button" id="undo-btn" hidden>Undo clear</button></span>
 </footer>
 
@@ -411,7 +446,7 @@ Prices such as $5 and $10 stay as plain text.
 | `$x^2$`     | $x^2$           |
 | `---`       | Horizontal rule |
 
-> Your text stays in this browser. Nothing is uploaded.
+> Your files stay on your computer. Nothing is uploaded.
 
 ---
 
@@ -423,7 +458,6 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
 <script src="vendor/katex.min.js"></script>
 <script>
 (function () {
-  var STORE_KEY = 'raute-draft';
   var SAMPLE = document.getElementById('sample').textContent.replace(/^\n/, '');
 
   var source = document.getElementById('source');
@@ -445,11 +479,11 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   var assetBtn = document.getElementById('asset-btn');
   var asideBtn = document.getElementById('aside-btn');
   var viewButtons = document.querySelectorAll('.seg button');
+  var themeBtn = document.getElementById('theme-btn');
 
   var SAMPLE_NAME = 'sample.md (example)';
-  /* outside: the document is a file from elsewhere, and the folder is set aside.
-     asidePath: the folder's file that was showing before, to go back to. */
-  var state = { text: SAMPLE, name: SAMPLE_NAME, view: 'split', path: null, outside: false, asidePath: null };
+  /* dirty: edits not yet written to the file. mtime: the file's date when last read or written. */
+  var state = { text: SAMPLE, name: SAMPLE_NAME, view: 'preview', path: null, dirty: false, mtime: null };
   var cleared = null;
   var canRender = typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined';
 
@@ -558,7 +592,6 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   var canPickFolder = typeof window.showDirectoryPicker === 'function' ||
     'webkitdirectory' in HTMLInputElement.prototype;
   var folder = null;         // { name, entries: Map(path -> {handle} or {file}), lower, md, handle, capped }
-  var pendingHandle = null;  // a remembered folder that needs one click to reconnect
   var aside = null;          // { folder, path }: a folder set aside while a file from elsewhere is open
   var lastFile = null;       // details of a file opened on its own, used to find it inside a folder
   var blobUrls = new Map();
@@ -615,7 +648,24 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     var note = document.createElement('span');
     note.className = 'img-missing';
     note.textContent = 'Image not shown: ' + ref;
+    note.dataset.ref = ref;
     img.replaceWith(note);
+  }
+
+  /* How many folders above the open file the missing pictures reach ("../../a.png" -> 2). */
+  function levelsUp() {
+    var most = 0;
+    output.querySelectorAll('.img-missing[data-ref]').forEach(function (el) {
+      var ref = el.dataset.ref.split('#')[0].split('?')[0].replace(/\\/g, '/');
+      if (ref.charAt(0) === '/') return;
+      var depth = 0, lowest = 0;
+      ref.split('/').forEach(function (seg) {
+        if (seg === '..') lowest = Math.min(lowest, --depth);
+        else if (seg !== '' && seg !== '.') depth++;
+      });
+      most = Math.max(most, -lowest);
+    });
+    return most;
   }
 
   /* Point pictures at the folder's files and tag links to neighbouring files. */
@@ -645,9 +695,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   function updateAssetNote() {
     var n = output.querySelectorAll('.img-missing').length;
     var subject = n === 1 ? '1 linked image is' : n + ' linked images are';
-    if (pendingHandle && n && !state.outside) {
-      setAssetNote('Reconnect “' + pendingHandle.name + '” to show linked images.', { label: 'Reconnect', run: reconnectFolder });
-    } else if (!n) {
+    if (!n) {
       setAssetNote(folder && !folder.md.length ? '“' + folder.name + '” has no Markdown files.' : '');
     } else if (!canPickFolder) {
       setAssetNote(subject + ' not shown. This browser cannot open folders.');
@@ -663,11 +711,11 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   function updateFolderUI() {
     folderBox.hidden = !folder;
     fileName.hidden = !!folder;
-    var away = aside ? aside.folder.name : pendingHandle && state.outside ? pendingHandle.name : null;
-    asideBtn.hidden = !away;
-    if (away) {
-      asideBtn.textContent = ((aside ? aside.path : state.asidePath) ? 'Back to “' : 'Show “') + away + '”';
-      asideBtn.title = 'The open file is not in “' + away + '”. Go back to the folder.';
+    updateSaveUI();
+    asideBtn.hidden = !aside;
+    if (aside) {
+      asideBtn.textContent = (aside.path ? 'Back to “' : 'Show “') + aside.folder.name + '”';
+      asideBtn.title = 'The open file is not in “' + aside.folder.name + '”. Go back to the folder.';
     }
     if (!folder) return;
     folderNameEl.textContent = folder.name + '/';
@@ -715,25 +763,6 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     return false;
   }
 
-  /* Remembers the chosen folder between visits (browsers that support it). */
-  function remember(op, value) {
-    return new Promise(function (resolve, reject) {
-      if (!window.indexedDB) { reject(new Error('no storage')); return; }
-      var open = indexedDB.open('raute', 1);
-      open.onupgradeneeded = function () { open.result.createObjectStore('kv'); };
-      open.onerror = function () { reject(open.error); };
-      open.onsuccess = function () {
-        var db = open.result;
-        try {
-          var os = db.transaction('kv', op === 'get' ? 'readonly' : 'readwrite').objectStore('kv');
-          var req = op === 'get' ? os.get('folder') : op === 'put' ? os.put(value, 'folder') : os.delete('folder');
-          req.onsuccess = function () { resolve(req.result); db.close(); };
-          req.onerror = function () { reject(req.error); db.close(); };
-        } catch (e) { db.close(); reject(e); }
-      };
-    }).catch(function () { return undefined; });
-  }
-
   /* Where inside folder f is a file that was opened on its own? */
   async function locate(f, meta) {
     if (meta.handle && f.handle && typeof f.handle.resolve === 'function') {
@@ -760,8 +789,6 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   function setAside(path) {
     aside = { folder: folder, path: path };
     releaseFolder();
-    state.outside = true;
-    state.asidePath = path;
     state.path = null;
   }
 
@@ -770,37 +797,40 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   }
 
   async function backToFolder() {
-    if (!aside && pendingHandle && state.outside) await reconnectFolder();
     if (!aside) return;
     var back = aside;
     aside = null;
     folder = back.folder;
-    state.outside = false;
-    state.asidePath = null;
     lastFile = null;
     var path = back.path && folder.entries.has(back.path) ? back.path : startFile(folder);
     if (path) { await openFromFolder(path); return; }
     state.path = null;
     updateFolderUI();
     render();
-    save();
   }
   asideBtn.addEventListener('click', backToFolder);
 
   function openFromFolder(path) {
-    var current = folder;
-    return entryFile(path).then(function (file) {
+    var current = folder, mtime = null;
+    return settle().then(function (ok) {
+      if (!ok) throw new Error('kept');
+      return entryFile(path);
+    }).then(function (file) {
       if (file.size > 5 * 1024 * 1024) throw new Error('too large');
+      mtime = file.lastModified;
       return file.text();
     }).then(function (text) {
       if (folder !== current) return;
       cleared = null;
       lastFile = null;
       state.path = path;
+      resetDisk(mtime);
+      setView('preview');
       load(text, path.split('/').pop());
       setNotice('Opened ' + path, false);
       document.getElementById('preview').scrollTop = 0;
     }).catch(function (e) {
+      if (e && e.message === 'kept') { updateFolderUI(); return; }
       setNotice(e && e.message === 'too large'
         ? path + ' is larger than 5 MB. Open a smaller file.'
         : 'Could not read ' + path + '.', false);
@@ -817,59 +847,41 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   function closeFolder() {
     releaseFolder();
     aside = null;
-    pendingHandle = null;
     state.path = null;
-    state.outside = false;
-    state.asidePath = null;
-    remember('delete');
     updateFolderUI();
     render();
-    save();
   }
 
-  async function connectFolder(next, restoring) {
+  async function connectFolder(next) {
     var previous = state.path;
-    var outside = state.outside;
-    var asidePath = state.asidePath;
     releaseFolder();
     aside = null;
     folder = next;
-    pendingHandle = null;
-    state.outside = false;
-    state.asidePath = null;
-    if (restoring && outside) {
-      /* Restarted while a file from elsewhere was open: the folder stays set aside. */
-      setAside(asidePath && next.entries.has(asidePath) ? asidePath : null);
-      updateFolderUI();
-      return;
-    }
     var path = null;
     if (lastFile) path = await locate(next, lastFile);
     else if (previous && folder.entries.has(previous)) path = previous;
     if (folder !== next) return;
-    if (!path && (lastFile || outside)) {
+    if (!path && lastFile) {
       /* The open file lives elsewhere: keep showing it rather than listing it as part of the folder. */
       setAside(null);
       updateFolderUI();
       render();
-      save();
       setNotice(state.name + ' is not in “' + next.name + '”.', false);
       return;
     }
     state.path = path;
     var replaceable = !lastFile &&
-      (state.name === SAMPLE_NAME || state.text.trim() === '' || (!!previous && !restoring));
-    if (!path && !restoring && replaceable && folder.md.length) {
+      (state.name === SAMPLE_NAME || state.text.trim() === '' || !!previous);
+    if (!path && replaceable && folder.md.length) {
       await openFromFolder(startFile(folder));
     } else {
       updateFolderUI();
       render();
-      save();
     }
     if (next.capped) setNotice('Only the first 20,000 files of this folder are available.', false);
   }
 
-  async function connectHandle(handle, restoring) {
+  async function connectHandle(handle) {
     setAssetNote('Reading “' + handle.name + '”…');
     var entries = new Map(), capped = false;
     try {
@@ -878,40 +890,30 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       setAssetNote('Could not read “' + handle.name + '”.');
       return;
     }
-    remember('put', handle);
-    await connectFolder(makeFolder(handle.name, entries, handle, capped), restoring);
+    await connectFolder(makeFolder(handle.name, entries, handle, capped));
   }
 
   async function pickFolder() {
     if (typeof window.showDirectoryPicker !== 'function') { folderInput.click(); return; }
+    /* A file opened on its own: start the dialog in that file's folder. */
+    var fileHandle = !folder && lastFile && lastFile.handle;
+    var options = fileHandle ? { startIn: fileHandle, mode: 'read' } : { id: 'raute', mode: 'read' };
+    if (fileHandle) {
+      var up = levelsUp();
+      setAssetNote(up
+        ? 'The images are in a folder above this file. Go up ' + up + (up === 1 ? ' level' : ' levels') + ', then choose that folder.'
+        : 'Choose the folder this file is in.');
+    }
     var handle;
     try {
-      handle = await window.showDirectoryPicker({ id: 'raute', mode: 'read' });
-    } catch (e) { return; /* cancelled */ }
-    await connectHandle(handle, false);
-  }
-
-  async function reconnectFolder() {
-    var handle = pendingHandle;
-    if (!handle) return;
-    var granted = false;
-    try { granted = (await handle.requestPermission({ mode: 'read' })) === 'granted'; } catch (e) { /* declined */ }
-    if (granted) await connectHandle(handle, true);
-  }
-
-  async function restoreFolder() {
-    var handle = await remember('get');
-    if (!handle || typeof handle.queryPermission !== 'function') return;
-    var permission = 'prompt';
-    try { permission = await handle.queryPermission({ mode: 'read' }); } catch (e) { /* treat as not yet allowed */ }
-    if (permission === 'granted') await connectHandle(handle, true);
-    else if (permission === 'prompt') { pendingHandle = handle; updateFolderUI(); updateAssetNote(); }
+      handle = await window.showDirectoryPicker(options);
+    } catch (e) { updateAssetNote(); return; /* cancelled */ }
+    await connectHandle(handle);
   }
 
   function followLink(ref) {
     if (!folder) {
-      if (pendingHandle && !state.outside) setAssetNote('Reconnect “' + pendingHandle.name + '” to follow links to other files.', { label: 'Reconnect', run: reconnectFolder });
-      else if (canPickFolder) setAssetNote('This link points to another file.', { label: 'Open folder', run: pickFolder });
+      if (canPickFolder) setAssetNote('This link points to another file.', { label: 'Open folder', run: pickFolder });
       else setAssetNote('This link points to another file. This browser cannot open folders.');
       return;
     }
@@ -954,11 +956,21 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       if (entries.size >= MAX_FOLDER_FILES) { capped = true; return; }
       entries.set(path, { file: f });
     });
-    connectFolder(makeFolder(name, entries, null, capped), false);
+    connectFolder(makeFolder(name, entries, null, capped));
   });
+
+  /* Front matter: a YAML (---) or TOML (+++) block at the very top of the file.
+     The preview shows it in a closed box instead of rendering it as Markdown. */
+  var FRONT_MATTER = /^\uFEFF?(---|\+\+\+)[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?(?:\1|\.\.\.)[ \t]*(?:\r?\n|$)/;
+  function splitFrontMatter(text) {
+    var m = FRONT_MATTER.exec(text);
+    if (!m || (m[1] === '+++' && m[0].trimEnd().slice(-3) === '...')) return { meta: null, body: text };
+    return { meta: m[2] || '', body: text.slice(m[0].length) };
+  }
 
   function render() {
     var text = state.text;
+    var parts = splitFrontMatter(text);
     var blank = text.trim() === '';
     var seq = ++renderSeq;
     empty.hidden = !blank;
@@ -968,7 +980,9 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       output.innerHTML = '';
     } else if (canRender) {
       /* Built off-screen first, so pictures are pointed at the right files before anything loads. */
-      tpl.innerHTML = DOMPurify.sanitize(marked.parse(text, { gfm: true }));
+      var meta = parts.meta === null ? '' :
+        '<details class="front-matter"><summary>Front matter</summary><pre><code>' + escapeHtml(parts.meta) + '</code></pre></details>';
+      tpl.innerHTML = DOMPurify.sanitize(meta + marked.parse(parts.body, { gfm: true }));
       var frag = tpl.content;
       typeset(frag);
       var pending = linkAssets(frag);
@@ -993,7 +1007,8 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     }
     updateAssetNote();
 
-    var words = blank ? 0 : text.trim().split(/\s+/).length;
+    var prose = parts.body.trim();
+    var words = prose === '' ? 0 : prose.split(/\s+/).length;
     var lines = text === '' ? 0 : text.split('\n').length;
     var minutes = Math.max(1, Math.round(words / 200));
     counts.textContent = blank
@@ -1010,8 +1025,37 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     viewButtons.forEach(function (b) {
       b.setAttribute('aria-pressed', String(b.dataset.view === view));
     });
-    save();
   }
+
+  /* ---------- light / dark ----------
+     Auto follows the system; Light and Dark override it and are remembered. */
+  var THEMES = { auto: '◐ Auto', light: '☀ Light', dark: '☾ Dark' };
+  var NEXT_THEME = { auto: 'light', light: 'dark', dark: 'auto' };
+  var themeMetas = document.querySelectorAll('meta[name="theme-color"]');
+  var themeMetaDefaults = Array.prototype.map.call(themeMetas, function (m) { return m.content; });
+
+  function setTheme(theme) {
+    var root = document.documentElement;
+    if (theme === 'auto') delete root.dataset.theme;
+    else root.dataset.theme = theme;
+    /* the installed app's title bar */
+    themeMetas.forEach(function (m, i) {
+      m.content = theme === 'auto' ? themeMetaDefaults[i] : theme === 'dark' ? '#171c24' : '#ffffff';
+    });
+    themeBtn.textContent = THEMES[theme];
+    themeBtn.title = 'Colour theme: ' + theme + '. Click for ' + NEXT_THEME[theme] + '.';
+    themeBtn.setAttribute('aria-label', themeBtn.title);
+  }
+
+  themeBtn.addEventListener('click', function () {
+    var theme = NEXT_THEME[document.documentElement.dataset.theme || 'auto'];
+    setTheme(theme);
+    try {
+      if (theme === 'auto') localStorage.removeItem('raute-theme');
+      else localStorage.setItem('raute-theme', theme);
+    } catch (e) { /* storage unavailable: applies until the app is closed */ }
+  });
+  setTheme(document.documentElement.dataset.theme || 'auto');
 
   function setName(name) {
     state.name = name;
@@ -1025,21 +1069,218 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     undoBtn.hidden = !showUndo;
   }
 
-  var saveTimer = null;
-  function save() {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(function () {
-      try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* storage unavailable */ }
-    }, 300);
-  }
-
   function load(text, name) {
     state.text = text;
     source.value = text;
     setName(name);
     render();
-    save();
   }
+
+  /* ---------- saving to the file on disk ----------
+     Chrome and Edge can write back to a file the page holds a handle to. The
+     browser asks once per file; Raute asks when you switch to Split or Source,
+     and from then on saves a moment after you stop typing. */
+  var canWrite = typeof window.showSaveFilePicker === 'function';
+  var saveNote = document.getElementById('save-note');
+  var saveBtn = document.getElementById('save-btn');
+  var reloadBtn = document.getElementById('reload-btn');
+  var MD_TYPES = [{ description: 'Markdown', accept: { 'text/markdown': ['.md', '.markdown', '.mdown'], 'text/plain': ['.txt'] } }];
+  var disk = {};
+
+  function resetDisk(mtime) {
+    clearTimeout(disk.timer);
+    /* asked: write access was requested for this file. granted: it may be written. */
+    disk = { timer: 0, busy: false, again: false, asked: false, granted: false, conflict: false, failed: false, saved: false };
+    state.dirty = false;
+    state.mtime = typeof mtime === 'number' ? mtime : null;
+    updateSaveUI();
+  }
+  resetDisk(null);
+
+  function docHandle() {
+    if (state.path) {
+      var entry = folder && folder.entries.get(state.path);
+      return entry && entry.handle || null;
+    }
+    return lastFile && lastFile.handle || null;
+  }
+
+  async function mayWrite(handle, ask) {
+    var opts = { mode: 'readwrite' };
+    try {
+      if (await handle.queryPermission(opts) !== 'granted' && ask) await handle.requestPermission(opts);
+      disk.granted = (await handle.queryPermission(opts)) === 'granted';
+    } catch (e) { disk.granted = false; }
+    return disk.granted;
+  }
+
+  function askToWrite() {
+    var handle = docHandle();
+    if (!handle || disk.asked) return;
+    disk.asked = true;
+    mayWrite(handle, true).then(function (ok) {
+      if (ok && state.dirty && docHandle() === handle) scheduleWrite();
+      updateSaveUI();
+    });
+  }
+
+  function scheduleWrite() {
+    clearTimeout(disk.timer);
+    disk.timer = setTimeout(function () { writeFile(false, false); }, 1000);
+  }
+
+  /* ask: may show the browser's permission question (needs a click or key press).
+     force: write even if another program changed the file. */
+  async function writeFile(ask, force) {
+    clearTimeout(disk.timer);
+    var handle = docHandle();
+    if (!handle) { if (ask) await saveAs(); return; }
+    if (disk.busy) { disk.again = true; return; }
+    if (!(await mayWrite(handle, ask))) { updateSaveUI(); return; }
+    var text = state.text, mine = disk;
+    mine.busy = true;
+    updateSaveUI();
+    try {
+      var before = await handle.getFile();
+      if (!force && state.mtime !== null && before.lastModified !== state.mtime) {
+        mine.conflict = true;
+        return;
+      }
+      var out = await handle.createWritable();
+      await out.write(text);
+      await out.close();
+      var after = await handle.getFile();
+      if (disk !== mine) return; // another file was opened meanwhile
+      state.mtime = after.lastModified;
+      if (lastFile && lastFile.handle === handle) {
+        lastFile.size = after.size;
+        lastFile.lastModified = after.lastModified;
+      }
+      mine.conflict = false;
+      mine.failed = false;
+      state.dirty = state.text !== text;
+      mine.saved = !state.dirty;
+    } catch (e) {
+      mine.failed = true;
+    } finally {
+      mine.busy = false;
+      if (disk === mine) {
+        updateSaveUI();
+        if (mine.again || (state.dirty && !mine.conflict && !mine.failed)) { mine.again = false; scheduleWrite(); }
+      }
+    }
+  }
+
+  function suggestedName() {
+    if (state.name === SAMPLE_NAME) return 'sample.md';
+    return /\.(?:md|markdown|mdown|txt)$/i.test(state.name) ? state.name : (state.name || 'Untitled') + '.md';
+  }
+
+  /* Text that is not a file yet: pick where to save it. Afterwards it saves like any opened file. */
+  async function saveAs() {
+    if (!canWrite) { download(); return; }
+    var handle;
+    try {
+      handle = await window.showSaveFilePicker({ id: 'raute-file', suggestedName: suggestedName(), types: MD_TYPES });
+    } catch (e) { return; /* cancelled */ }
+    var path = null;
+    if (folder && folder.handle && typeof folder.handle.resolve === 'function') {
+      try {
+        var parts = await folder.handle.resolve(handle);
+        if (parts && parts.length) path = parts.join('/');
+      } catch (e) { /* saved outside the folder */ }
+    }
+    if (path) {
+      folder.entries.set(path, { handle: handle });
+      folder = makeFolder(folder.name, folder.entries, folder.handle, folder.capped);
+    } else if (folder) {
+      setAside(null);
+    }
+    state.path = path;
+    lastFile = { name: handle.name, size: 0, lastModified: 0, handle: handle };
+    resetDisk(null);
+    state.dirty = true;
+    disk.asked = true; // choosing the place to save already allowed writing there
+    setName(handle.name);
+    render();
+    await writeFile(false, true);
+  }
+
+  function download() {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([state.text], { type: 'text/markdown' }));
+    a.download = suggestedName();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    state.dirty = false;
+    disk.saved = true;
+    updateSaveUI();
+  }
+
+  async function reloadFromDisk() {
+    var handle = docHandle();
+    if (!handle) return;
+    try {
+      var file = await handle.getFile();
+      var text = await file.text();
+      resetDisk(file.lastModified);
+      if (lastFile && lastFile.handle === handle) { lastFile.size = file.size; lastFile.lastModified = file.lastModified; }
+      load(text, state.name);
+      setNotice('Reloaded ' + state.name, false);
+    } catch (e) {
+      setNotice('Could not read ' + state.name + '.', false);
+    }
+  }
+
+  function saveNow() {
+    if (!canWrite) { download(); return; }
+    writeFile(true, disk.conflict);
+  }
+
+  /* Before another file replaces this one: save what can be saved, otherwise ask. */
+  async function settle() {
+    if (!state.dirty) return true;
+    clearTimeout(disk.timer);
+    var handle = docHandle();
+    if (handle && !disk.conflict && await mayWrite(handle, false)) {
+      while (disk.busy) await new Promise(function (r) { setTimeout(r, 50); });
+      await writeFile(false, false);
+      if (!state.dirty) return true;
+    }
+    return window.confirm('Your changes to “' + state.name + '” are not saved. Open the other file anyway?');
+  }
+
+  function updateSaveUI() {
+    if (!saveNote || !disk) return; // not set up yet
+    var msg = '', btn = '';
+    if (disk.conflict) { msg = 'Changed on disk by another program.'; btn = 'Overwrite'; }
+    else if (disk.busy) msg = 'Saving…';
+    else if (state.dirty) {
+      if (!canWrite) { msg = 'Not saved.'; btn = 'Download'; }
+      else if (!docHandle()) { msg = 'Not saved to a file.'; btn = 'Save as…'; }
+      else if (disk.failed) { msg = 'Could not save.'; btn = 'Try again'; }
+      else if (disk.granted) msg = 'Unsaved changes';
+      else { msg = 'Unsaved changes.'; btn = 'Save'; }
+    } else if (disk.saved) msg = 'Saved';
+    saveNote.textContent = msg;
+    saveBtn.hidden = !btn;
+    saveBtn.textContent = btn;
+    reloadBtn.hidden = !disk.conflict;
+  }
+
+  saveBtn.addEventListener('click', saveNow);
+  reloadBtn.addEventListener('click', reloadFromDisk);
+  window.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      saveNow();
+    }
+  });
+  window.addEventListener('beforeunload', function (e) {
+    if (state.dirty) { e.preventDefault(); e.returnValue = ''; }
+  });
 
   function openFile(file, handle) {
     if (!file) return;
@@ -1049,7 +1290,11 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     }
     var meta = { name: file.name, size: file.size, lastModified: file.lastModified, handle: handle || null };
     var home = folder || (aside && aside.folder);
-    Promise.all([file.text(), home ? locate(home, meta) : null]).then(function (r) {
+    settle().then(function (ok) {
+      if (!ok) return null;
+      return Promise.all([file.text(), home ? locate(home, meta) : null]);
+    }).then(function (r) {
+      if (!r) return;
       var text = r[0], path = r[1];
       if ((folder || (aside && aside.folder)) !== home) path = null;
       cleared = null;
@@ -1058,12 +1303,12 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
         /* A file from the folder that was set aside: bring the folder back. */
         folder = aside.folder;
         aside = null;
-        state.outside = false;
-        state.asidePath = null;
       } else if (!path && folder) {
         setAside(state.path);
       }
       state.path = path;
+      resetDisk(file.lastModified);
+      setView('preview');
       load(text, file.name);
       setNotice('Opened ' + file.name, false);
       document.getElementById('preview').scrollTop = 0;
@@ -1077,9 +1322,14 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     state.text = source.value;
     if (state.name === SAMPLE_NAME) setName('Untitled');
     if (cleared) { cleared = null; setNotice('', false); }
+    state.dirty = true;
+    disk.saved = false;
+    disk.failed = false;
+    askToWrite();
+    if (docHandle() && disk.granted && !disk.conflict) scheduleWrite();
+    updateSaveUI();
     cancelAnimationFrame(frame);
     frame = requestAnimationFrame(render);
-    save();
   });
 
   source.addEventListener('keydown', function (e) {
@@ -1090,6 +1340,20 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     source.dispatchEvent(new Event('input'));
   });
 
+  /* Where the browser has it, the newer file picker also gives the page a handle
+     to the file, so "Open folder" can start in that file's folder. */
+  if (typeof window.showOpenFilePicker === 'function') {
+    fileInput.addEventListener('click', function (e) {
+      e.preventDefault();
+      window.showOpenFilePicker({
+        id: 'raute-file',
+        types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md', '.markdown', '.mdown'], 'text/plain': ['.txt'] } }]
+      }).then(function (handles) {
+        return handles[0].getFile().then(function (file) { openFile(file, handles[0]); });
+      }).catch(function () { /* cancelled */ });
+    });
+  }
+
   fileInput.addEventListener('change', function () {
     openFile(fileInput.files[0]);
     fileInput.value = '';
@@ -1097,11 +1361,13 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
 
   document.getElementById('clear-btn').addEventListener('click', function () {
     if (state.text === '') return;
-    cleared = { text: state.text, name: state.name, path: state.path, lastFile: lastFile };
+    cleared = { text: state.text, name: state.name, path: state.path, lastFile: lastFile, dirty: state.dirty, mtime: state.mtime };
     state.path = null;
     lastFile = null;
+    resetDisk(null);
     load('', 'Untitled');
     setNotice('Cleared.', true);
+    if (state.view === 'preview') setView('split');
     source.focus();
   });
 
@@ -1109,13 +1375,19 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     if (!cleared) return;
     state.path = cleared.path;
     lastFile = cleared.lastFile;
+    resetDisk(cleared.mtime);
+    state.dirty = cleared.dirty;
     load(cleared.text, cleared.name);
+    updateSaveUI();
     cleared = null;
     setNotice('Restored.', false);
   });
 
   viewButtons.forEach(function (b) {
-    b.addEventListener('click', function () { setView(b.dataset.view); });
+    b.addEventListener('click', function () {
+      setView(b.dataset.view);
+      if (b.dataset.view !== 'preview') askToWrite();
+    });
   });
 
   var dragDepth = 0;
@@ -1146,7 +1418,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     if (item && typeof item.getAsFileSystemHandle === 'function') {
       /* Where the browser allows it, a dropped folder is opened as a folder. */
       item.getAsFileSystemHandle().then(function (handle) {
-        if (handle && handle.kind === 'directory') connectHandle(handle, false);
+        if (handle && handle.kind === 'directory') connectHandle(handle);
         else openFile(dropped, handle || null);
       }).catch(function () { openFile(dropped); });
       return;
@@ -1154,34 +1426,21 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     openFile(dropped);
   });
 
-  function start(data) {
-    var saved = data && typeof data.text === 'string' ? data : null;
-    if (!saved) {
-      try {
-        var raw = localStorage.getItem(STORE_KEY);
-        var parsed = raw ? JSON.parse(raw) : null;
-        if (parsed && typeof parsed.text === 'string') saved = parsed;
-      } catch (e) { /* storage unavailable */ }
-    }
-    if (saved) {
-      var isSample = saved.name === SAMPLE_NAME;
-      state.text = isSample ? SAMPLE : saved.text;
-      state.path = !isSample && typeof saved.path === 'string' ? saved.path : null;
-      state.name = typeof saved.name === 'string' ? saved.name : 'Untitled';
-      state.outside = !isSample && saved.outside === true;
-      state.asidePath = state.outside && typeof saved.asidePath === 'string' ? saved.asidePath : null;
-      if (saved.view === 'source' || saved.view === 'split' || saved.view === 'preview') state.view = saved.view;
-    }
+  /* Every start is fresh: nothing about earlier files or folders is kept.
+     Older versions saved the open text and folder; remove those leftovers. */
+  function start() {
+    try { localStorage.removeItem('raute-draft'); } catch (e) { /* storage unavailable */ }
+    try { if (window.indexedDB) indexedDB.deleteDatabase('raute'); } catch (e) { /* storage unavailable */ }
     source.value = state.text;
     setName(state.name);
     setView(state.view);
     render();
+    updateSaveUI();
     if (!canRender) setNotice('The Markdown renderer did not load, so the preview shows plain text.', false);
     else if (!hasKatex) setNotice('The formula renderer did not load, so formulas show as TeX source.', false);
   }
 
-  start(null);
-  restoreFolder();
+  start();
 
   /* Installed app: a .md file opened with it from the file manager lands here. */
   if ('launchQueue' in window) {

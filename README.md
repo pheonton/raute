@@ -15,6 +15,27 @@ works at the root of a domain or in a subfolder.
 Open `index.html` directly from disk. Everything works except installing the
 app and the offline cache, which need a web address.
 
+## Light and dark
+
+The theme button in the top bar switches between **Auto** (follows the
+system), **Light** and **Dark**. The choice is remembered; it is the only thing
+Raute keeps between visits.
+
+## Editing and saving
+
+Files open in Preview. Switching to Split or Source means you want to edit:
+in Chrome and Edge the browser then asks once whether Raute may save changes
+to that file, and from then on every change is saved to the file a moment
+after you stop typing. The top bar shows whether changes are saved.
+
+- Ctrl+S (Cmd+S on a Mac) saves right away. Text that is not a file yet
+  (typed or pasted) is saved with a "Save as" dialog, and saves itself from
+  then on.
+- If another program changed the file since Raute read it, Raute does not
+  overwrite it and offers **Overwrite** or **Reload** instead.
+- Opening another file while changes could not be saved asks first.
+- Firefox and Safari cannot write to files; there **Download** saves a copy.
+
 ## Pictures and links to other files
 
 A web page only receives the one file it is given, not the folder around it.
@@ -24,13 +45,18 @@ resolves relative paths such as `images/plot.png` inside that folder, lists
 the folder's Markdown files in the top bar, and follows links between them.
 Hidden folders and `node_modules` are skipped.
 
+In Chrome and Edge the folder dialog opens in the folder of the file you are
+reading, so usually you only have to confirm it. If the pictures are in a
+folder above (paths starting with `../`), the top bar says how many levels
+to go up.
+
 If you then open a file that is not in that folder, the folder is set aside:
 the top bar shows only that file, and a **Back to** button returns to the
 folder.
 
-In Chrome and Edge the folder is remembered between visits; after a restart
-the browser may ask you to confirm access again. Firefox and Safari can open a
-folder too, but do not remember it.
+Raute starts fresh every time: when you close it, it forgets the open file,
+the folder and any changes that were not saved (it warns you first if there
+are unsaved changes).
 
 ## Updating
 
