@@ -34,6 +34,7 @@
     --code-bg: #e9edf2;
     --accent: #0d6b68;
     --error: #b3261e;
+    --warn: #c2410c;
 
     --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
     --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
@@ -49,6 +50,7 @@
       --code-bg: #212833;
       --accent: #5fc9c0;
       --error: #ff8f85;
+      --warn: #fb923c;
       color-scheme: dark;
     }
   }
@@ -61,6 +63,7 @@
     --code-bg: #212833;
     --accent: #5fc9c0;
     --error: #ff8f85;
+    --warn: #fb923c;
     color-scheme: dark;
   }
 
@@ -187,6 +190,10 @@
   .joined > :first-child:has(+ [hidden]), .joined > :only-child { border-radius: 6px; }
   .joined > * + * { margin-left: -1px; }
   .joined > :hover, .joined > :focus-visible { position: relative; z-index: 1; }
+
+  /* a button that needs a look, e.g. pictures waiting for their folder */
+  .attention { border-color: var(--warn); box-shadow: inset 0 0 0 1px var(--warn); }
+  .attention:hover { border-color: var(--warn); }
   .recent option { color: var(--ink); background: var(--surface); }
   .theme-btn { display: inline-flex; align-items: center; justify-content: center; padding: 6px 8px; }
   .theme-btn svg { display: block; margin-block: 0.75px; }
@@ -632,6 +639,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     assetAction = action || null;
     assetBtn.hidden = !action;
     if (action) assetBtn.textContent = action.label;
+    assetBtn.classList.toggle('attention', !!(action && action.attention));
   }
   assetBtn.addEventListener('click', function () { if (assetAction) assetAction.run(); });
 
@@ -728,12 +736,38 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     } else if (!canPickFolder) {
       setAssetNote(subject + ' not shown. This browser cannot open folders.');
     } else if (!folder) {
-      setAssetNote(subject + ' not shown.', { label: 'Open folder', run: pickFolder });
+      var home = recentHome(levelsUp());
+      setAssetNote(subject + ' not shown.', home
+        ? { label: 'Open “' + home.name + '”', run: function () { openRecent(home); }, attention: true }
+        : { label: 'Open folder', run: pickFolder, attention: true });
     } else if (!state.path) {
-      setAssetNote(subject + ' not in “' + folder.name + '”.', { label: 'Open another folder', run: pickFolder });
+      setAssetNote(subject + ' not in “' + folder.name + '”.', { label: 'Open another folder', run: pickFolder, attention: true });
     } else {
       setAssetNote(subject + ' missing from “' + folder.name + '”.');
     }
+  }
+
+  /* A recent folder that holds the open file, deep enough to reach its pictures,
+     opens without the folder dialog. Looked up once per file and list. */
+  var homeLookup = { file: null, list: null, up: -1, handle: null };
+  function recentHome(up) {
+    var meta = lastFile;
+    if (!meta || !meta.handle || !recent.length) return null;
+    var hit = homeLookup;
+    if (hit.file === meta && hit.list === recent && hit.up === up) return hit.handle;
+    var mine = homeLookup = { file: meta, list: recent, up: up, handle: null };
+    (async function () {
+      var best = null, depth = Infinity;
+      for (var i = 0; i < mine.list.length; i++) {
+        var parts = null;
+        try { parts = await mine.list[i].resolve(meta.handle); } catch (e) { /* not reachable */ }
+        if (parts && parts.length - 1 >= up && parts.length < depth) { best = mine.list[i]; depth = parts.length; }
+      }
+      if (homeLookup !== mine || !best) return;
+      mine.handle = best;
+      updateAssetNote();
+    })();
+    return null;
   }
 
   function updateFolderUI() {

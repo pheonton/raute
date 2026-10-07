@@ -42,6 +42,35 @@ await evaluate(`(async () => { window.__o = __mkDir('old', { id: 'O' }); await _
 await sleep(400);
 await is('a deleted folder drops off the list', `!__recent().includes('old') && document.getElementById('notice').textContent === '“old” no longer exists.'`);
 
+// ---------- pictures waiting for a folder ----------
+await evaluate(`(async () => {
+  window.__file = { kind: 'file', name: 'blatt.md', getFile: async () => new File(['# Blatt\\n\\n![p](../img/p.png)'], 'blatt.md', { lastModified: 4000 }) };
+  const png = { kind: 'file', name: 'p.png', getFile: async () => new File(['PNG'], 'p.png') };
+  const blatt = { kind: 'file', name: 'blatt.md', getFile: __file.getFile };
+  const dir = (name, items) => ({ kind: 'directory', name, values: async function* () { yield* items; } });
+  window.__home = __mkDir('physik', { id: 'P', perm: 'prompt' });
+  __home.values = async function* () { yield dir('img', [png]); yield dir('blaetter', [blatt]); };
+  __home.resolve = async (h) => h === __file ? ['blaetter', 'blatt.md'] : null;
+  await __pickDir(__home);
+  { const s = document.getElementById('folder-select'); s.value = '::close'; s.dispatchEvent(new Event('change')); }
+  window.showOpenFilePicker = async () => [__file];
+  document.getElementById('file-input').click();
+})()`);
+await sleep(600);
+await is('a recent folder holding the file is offered by name, highlighted',
+  `document.getElementById('asset-btn').textContent === 'Open “physik”' && document.getElementById('asset-btn').classList.contains('attention')`);
+await evaluate(`__home.perm = 'prompt'; window.showDirectoryPicker = () => { window.__dialog = true; return Promise.reject(new DOMException('x', 'AbortError')); };
+  document.getElementById('asset-btn').click(); 1`);
+await sleep(600);
+await is('it opens without the folder dialog and shows the picture',
+  `!window.__dialog && __folderName() === 'physik/' && document.getElementById('folder-select').value === 'blaetter/blatt.md' && !!document.querySelector('#output img[src^="blob:"]')`);
+await evaluate(`{ const s = document.getElementById('folder-select'); s.value = '::close'; s.dispatchEvent(new Event('change')); }
+  window.__other = { kind: 'file', name: 'x.md', getFile: async () => new File(['![p](p.png)'], 'x.md') };
+  window.showOpenFilePicker = async () => [__other]; document.getElementById('file-input').click(); 1`);
+await sleep(600);
+await is('no matching recent folder: plain Open folder, still highlighted',
+  `document.getElementById('asset-btn').textContent === 'Open folder' && document.getElementById('asset-btn').classList.contains('attention')`);
+
 // ---------- theme (system is dark) ----------
 const DARK = 'rgb(16, 20, 26)', LIGHT = 'rgb(238, 241, 244)';
 const bg = `getComputedStyle(document.body).backgroundColor`;

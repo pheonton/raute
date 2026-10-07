@@ -57,7 +57,8 @@ Hidden folders and `node_modules` are skipped.
 In Chrome and Edge the folder dialog opens in the folder of the file you are
 reading, so usually you only have to confirm it. If the pictures are in a
 folder above (paths starting with `../`), the top bar says how many levels
-to go up.
+to go up. If one of your recent folders (see below) holds the file and its
+pictures, the button names that folder and opens it without the dialog.
 
 If you then open a file that is not in that folder, the folder is set aside:
 the top bar shows only that file, and a **Back to** button returns to the
