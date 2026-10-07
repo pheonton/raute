@@ -164,6 +164,8 @@
     color: var(--muted);
   }
   .asset button { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; margin-left: 4px; }
+  .theme-btn { display: inline-flex; align-items: center; justify-content: center; padding: 6px 8px; }
+  .theme-btn svg { display: block; margin-block: 0.75px; }
   .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
   button, .file-btn {
@@ -380,7 +382,7 @@
       <button type="button" id="view-split" data-view="split" aria-pressed="true">Split</button>
       <button type="button" id="view-preview" data-view="preview" aria-pressed="false">Preview</button>
     </div>
-    <button type="button" id="theme-btn">◐ Auto</button>
+    <button type="button" class="theme-btn" id="theme-btn"></button>
   </div>
 </header>
 
@@ -1029,7 +1031,12 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
 
   /* ---------- light / dark ----------
      Auto follows the system; Light and Dark override it and are remembered. */
-  var THEMES = { auto: '◐ Auto', light: '☀ Light', dark: '☾ Dark' };
+  var ICON = '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">';
+  var THEMES = {
+    auto: ICON + '<circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg>',
+    light: ICON + '<circle cx="8" cy="8" r="2.75"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1.06 1.06M11.54 11.54l1.06 1.06M3.4 12.6l1.06-1.06M11.54 4.46l1.06-1.06"/></svg>',
+    dark: ICON + '<path d="M13.5 9.6A5.75 5.75 0 1 1 6.4 2.5a4.6 4.6 0 0 0 7.1 7.1z"/></svg>'
+  };
   var NEXT_THEME = { auto: 'light', light: 'dark', dark: 'auto' };
   var themeMetas = document.querySelectorAll('meta[name="theme-color"]');
   var themeMetaDefaults = Array.prototype.map.call(themeMetas, function (m) { return m.content; });
@@ -1042,7 +1049,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     themeMetas.forEach(function (m, i) {
       m.content = theme === 'auto' ? themeMetaDefaults[i] : theme === 'dark' ? '#171c24' : '#ffffff';
     });
-    themeBtn.textContent = THEMES[theme];
+    themeBtn.innerHTML = THEMES[theme];
     themeBtn.title = 'Colour theme: ' + theme + '. Click for ' + NEXT_THEME[theme] + '.';
     themeBtn.setAttribute('aria-label', themeBtn.title);
   }
