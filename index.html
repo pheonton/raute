@@ -855,13 +855,20 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   }
 
   async function connectFolder(next) {
+    /* Unsaved edits belong to the current file: save them (or ask) before switching. */
+    if (!(await settle())) { updateAssetNote(); return; }
     var previous = state.path;
+    /* A file from the old folder can also be inside the new one (say, its parent).
+       Match it by the file itself, never by a path that merely looks the same. */
+    var oldEntry = previous && folder ? folder.entries.get(previous) : null;
+    var meta = lastFile || (oldEntry && oldEntry.handle
+      ? { name: previous.split('/').pop(), size: -1, lastModified: -1, handle: oldEntry.handle }
+      : null);
     releaseFolder();
     aside = null;
     folder = next;
-    var path = null;
-    if (lastFile) path = await locate(next, lastFile);
-    else if (previous && folder.entries.has(previous)) path = previous;
+    state.path = null;
+    var path = meta ? await locate(next, meta) : null;
     if (folder !== next) return;
     if (!path && lastFile) {
       /* The open file lives elsewhere: keep showing it rather than listing it as part of the folder. */
