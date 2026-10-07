@@ -18,8 +18,7 @@ app and the offline cache, which need a web address.
 ## Light and dark
 
 The theme button in the top bar switches between **Auto** (follows the
-system), **Light** and **Dark**. The choice is remembered; it is the only thing
-Raute keeps between visits.
+system), **Light** and **Dark**. The choice is remembered.
 
 ## Editing and saving
 
@@ -57,6 +56,12 @@ folder.
 Raute starts fresh every time: when you close it, it forgets the open file,
 the folder and any changes that were not saved (it warns you first if there
 are unsaved changes).
+
+In Chrome and Edge, **Recent** next to **Open folder** lists the last 10
+folders you opened. Raute keeps only the browser's reference to them, not
+their contents. The first time you reopen one, the browser asks for access
+and offers **Allow on every visit**; after that, recent folders open with one
+click. A folder that was moved or deleted drops off the list.
 
 ## Updating
 

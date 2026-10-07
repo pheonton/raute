@@ -164,6 +164,21 @@
     color: var(--muted);
   }
   .asset button { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; margin-left: 4px; }
+  .recent {
+    font: inherit;
+    font-size: 13.5px;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 6px 6px 6px 10px;
+    line-height: 1.3;
+    cursor: pointer;
+    field-sizing: content;
+    max-width: 12em;
+  }
+  .recent:hover { border-color: var(--muted); }
+  .recent option { color: var(--ink); background: var(--surface); }
   .theme-btn { display: inline-flex; align-items: center; justify-content: center; padding: 6px 8px; }
   .theme-btn svg { display: block; margin-block: 0.75px; }
   .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -375,6 +390,7 @@
       <input class="visually-hidden" type="file" id="file-input" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain">
     </label>
     <button type="button" id="folder-btn" hidden>Open folder</button>
+    <select class="recent" id="recent-select" aria-label="Recent folders" hidden></select>
     <input type="file" id="folder-input" webkitdirectory hidden>
     <button type="button" id="clear-btn">Clear</button>
     <div class="seg" role="group" aria-label="View">
@@ -897,9 +913,99 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       capped = await walk(handle, '', entries);
     } catch (e) {
       setAssetNote('Could not read “' + handle.name + '”.');
-      return;
+      return e && e.name === 'NotFoundError' ? 'gone' : 'failed';
     }
+    addRecent(handle);
     await connectFolder(makeFolder(handle.name, entries, handle, capped));
+    return 'ok';
+  }
+
+  /* ---------- recent folders ----------
+     The last few folders are remembered (only the browser's reference to them,
+     not their contents). Opening one again lets Chrome and Edge offer
+     "Allow on every visit", after which it opens without asking. */
+  var MAX_RECENT = 10;
+  var recent = [];
+  var recentSelect = document.getElementById('recent-select');
+
+  function recentStore(list) {
+    return new Promise(function (resolve, reject) {
+      if (!window.indexedDB) { reject(new Error('no storage')); return; }
+      var open = indexedDB.open('raute-recent', 1);
+      open.onupgradeneeded = function () { open.result.createObjectStore('kv'); };
+      open.onerror = function () { reject(open.error); };
+      open.onsuccess = function () {
+        var db = open.result;
+        try {
+          var os = db.transaction('kv', list ? 'readwrite' : 'readonly').objectStore('kv');
+          var req = list ? os.put(list, 'folders') : os.get('folders');
+          req.onsuccess = function () { resolve(req.result); db.close(); };
+          req.onerror = function () { reject(req.error); db.close(); };
+        } catch (e) { db.close(); reject(e); }
+      };
+    }).catch(function () { return undefined; });
+  }
+
+  function updateRecentUI() {
+    recentSelect.hidden = !recent.length;
+    recentSelect.textContent = '';
+    var placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Recent';
+    placeholder.hidden = true;
+    recentSelect.appendChild(placeholder);
+    var seen = {};
+    recent.forEach(function (handle, i) {
+      var option = document.createElement('option');
+      seen[handle.name] = (seen[handle.name] || 0) + 1;
+      option.value = String(i);
+      option.textContent = handle.name + (seen[handle.name] > 1 ? ' (' + seen[handle.name] + ')' : '');
+      recentSelect.appendChild(option);
+    });
+    recentSelect.value = '';
+  }
+
+  async function addRecent(handle) {
+    var keep = [];
+    for (var i = 0; i < recent.length; i++) {
+      var same = false;
+      try { same = await recent[i].isSameEntry(handle); } catch (e) { /* treat as different */ }
+      if (!same) keep.push(recent[i]);
+    }
+    recent = [handle].concat(keep).slice(0, MAX_RECENT);
+    updateRecentUI();
+    recentStore(recent);
+  }
+
+  async function openRecent(handle) {
+    var permission = 'denied';
+    try {
+      permission = await handle.queryPermission({ mode: 'read' });
+      if (permission !== 'granted') permission = await handle.requestPermission({ mode: 'read' });
+    } catch (e) { /* treated as declined */ }
+    if (permission !== 'granted') { setNotice('No access to “' + handle.name + '”.', false); return; }
+    if (await connectHandle(handle) === 'gone') {
+      /* moved or deleted: drop it from the list */
+      recent = recent.filter(function (h) { return h !== handle; });
+      updateRecentUI();
+      recentStore(recent);
+      setNotice('“' + handle.name + '” no longer exists.', false);
+      updateAssetNote();
+    }
+  }
+
+  recentSelect.addEventListener('change', function () {
+    var handle = recent[Number(recentSelect.value)];
+    recentSelect.value = '';
+    if (handle) openRecent(handle);
+  });
+
+  if (typeof window.showDirectoryPicker === 'function') {
+    recentStore().then(function (list) {
+      if (!Array.isArray(list)) return;
+      recent = list.filter(function (h) { return h && h.kind === 'directory'; }).slice(0, MAX_RECENT);
+      updateRecentUI();
+    });
   }
 
   async function pickFolder() {
@@ -1440,8 +1546,9 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     openFile(dropped);
   });
 
-  /* Every start is fresh: nothing about earlier files or folders is kept.
-     Older versions saved the open text and folder; remove those leftovers. */
+  /* Every start is fresh: no file or folder is open (only the recent folders
+     list and the theme are kept). Older versions saved the open text and
+     folder; remove those leftovers. */
   function start() {
     try { localStorage.removeItem('raute-draft'); } catch (e) { /* storage unavailable */ }
     try { if (window.indexedDB) indexedDB.deleteDatabase('raute'); } catch (e) { /* storage unavailable */ }
