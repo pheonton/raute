@@ -103,6 +103,29 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .folder {
+    min-width: 0;
+    flex: 1 1 160px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .folder-name { flex: 0 1 auto; min-width: 0; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .folder select {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    font: inherit;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 5px 6px;
+    cursor: pointer;
+  }
   .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
   button, .file-btn {
@@ -187,6 +210,15 @@
   .md a { color: var(--accent); text-underline-offset: 2px; }
   .md blockquote { padding: 2px 0 2px 16px; border-left: 3px solid var(--accent); color: var(--muted); }
   .md blockquote > :last-child { margin-bottom: 0; }
+  .md .img-missing {
+    display: inline-block;
+    padding: 4px 10px;
+    border: 1px dashed var(--rule);
+    border-radius: 4px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.8em;
+  }
   .md code { font-family: var(--font-mono); font-size: 0.86em; background: var(--code-bg); padding: 0.12em 0.36em; border-radius: 4px; }
   .md pre { background: var(--code-bg); padding: 14px 16px; border-radius: 6px; overflow-x: auto; line-height: 1.55; }
   .md pre code { background: none; padding: 0; font-size: 0.82em; }
@@ -245,7 +277,7 @@
     main[data-view="source"] .source { border-bottom: 0; }
     .preview { padding: 20px 16px 40px; }
     .md { font-size: 16px; }
-    .file { flex-basis: 100%; order: 3; }
+    .file, .folder { flex-basis: 100%; order: 3; }
   }
 
   /* ---------- printing: only the rendered document, on white ---------- */
@@ -284,10 +316,16 @@
 <header class="bar">
   <h1 class="name"><span aria-hidden="true">#</span>Raute</h1>
   <div class="file" id="file-name" title="">sample.md (example)</div>
+  <div class="folder" id="folder-box" hidden>
+    <span class="folder-name" id="folder-name"></span>
+    <select id="folder-select" aria-label="Markdown files in the open folder"></select>
+  </div>
   <div class="controls">
     <label class="file-btn" for="file-input">Open file
       <input class="visually-hidden" type="file" id="file-input" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain">
     </label>
+    <button type="button" id="folder-btn" hidden>Open folder</button>
+    <input type="file" id="folder-input" webkitdirectory hidden>
     <button type="button" id="clear-btn">Clear</button>
     <div class="seg" role="group" aria-label="View">
       <button type="button" id="view-source" data-view="source" aria-pressed="false">Source</button>
@@ -307,10 +345,11 @@
 
 <footer class="status">
   <span id="counts">0 words</span>
+  <span id="asset-wrap"><span id="asset-note"></span> <button type="button" id="asset-btn" hidden></button></span>
   <span id="notice-wrap"><span id="notice"></span> <button type="button" id="undo-btn" hidden>Undo clear</button></span>
 </footer>
 
-<div class="drop" id="drop" hidden>Drop the file to open it</div>
+<div class="drop" id="drop" hidden>Drop a file or folder to open it</div>
 
 <script type="text/markdown" id="sample"># Raute
 
@@ -363,7 +402,7 @@ Prices such as $5 and $10 stay as plain text.
 
 ---
 
-Drop a `.md` file anywhere on the page to open it. After the first visit this app works without an internet connection, and you can install it from your browser's menu.
+Drop a `.md` file anywhere on the page to open it. If a file links to pictures stored next to it, choose **Open folder** and pick the folder that contains it. After the first visit this app works without an internet connection, and you can install it from your browser's menu.
 </script>
 
 <script src="vendor/marked.min.js"></script>
@@ -384,9 +423,17 @@ Drop a `.md` file anywhere on the page to open it. After the first visit this ap
   var undoBtn = document.getElementById('undo-btn');
   var drop = document.getElementById('drop');
   var fileInput = document.getElementById('file-input');
+  var folderBtn = document.getElementById('folder-btn');
+  var folderInput = document.getElementById('folder-input');
+  var folderBox = document.getElementById('folder-box');
+  var folderNameEl = document.getElementById('folder-name');
+  var folderSelect = document.getElementById('folder-select');
+  var assetNote = document.getElementById('asset-note');
+  var assetBtn = document.getElementById('asset-btn');
   var viewButtons = document.querySelectorAll('.seg button');
 
-  var state = { text: SAMPLE, name: 'sample.md (example)', view: 'split' };
+  var SAMPLE_NAME = 'sample.md (example)';
+  var state = { text: SAMPLE, name: SAMPLE_NAME, view: 'split', path: null };
   var cleared = null;
   var canRender = typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined';
 
@@ -486,33 +533,400 @@ Drop a `.md` file anywhere on the page to open it. After the first visit this ap
     });
   }
 
+  /* ---------- open folder ----------
+     A page only receives the single file it is given. Pictures and links that
+     point to neighbouring files are looked up in a folder the user opens. */
+  var MD_FILE = /\.(?:md|markdown|mdown)$/i;
+  var SAFE_TO_OPEN = /\.(?:png|jpe?g|gif|webp|avif|bmp|pdf|txt)$/i;
+  var MAX_FOLDER_FILES = 20000;
+  var canPickFolder = typeof window.showDirectoryPicker === 'function' ||
+    'webkitdirectory' in HTMLInputElement.prototype;
+  var folder = null;         // { name, entries: Map(path -> {handle} or {file}), lower, md, handle, capped }
+  var pendingHandle = null;  // a remembered folder that needs one click to reconnect
+  var lastFile = null;       // details of a file opened on its own, used to find it inside a folder
+  var blobUrls = new Map();
+  var renderSeq = 0;
+  var assetAction = null;
+  var tpl = document.createElement('template');
+
+  function setAssetNote(msg, action) {
+    assetNote.textContent = msg || '';
+    assetAction = action || null;
+    assetBtn.hidden = !action;
+    if (action) assetBtn.textContent = action.label;
+  }
+  assetBtn.addEventListener('click', function () { if (assetAction) assetAction.run(); });
+
+  function isRelative(url) {
+    return url !== '' && !/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(url);
+  }
+  function skipPath(path) {
+    return path.split('/').some(function (seg) { return seg.charAt(0) === '.' || seg === 'node_modules'; });
+  }
+
+  /* "../img/a.png" as written in the open document -> "img/a.png" inside the folder */
+  function resolvePath(ref) {
+    var clean = ref.split('#')[0].split('?')[0].replace(/\\/g, '/');
+    try { clean = decodeURIComponent(clean); } catch (e) { /* keep as written */ }
+    var parts = clean.charAt(0) === '/' || !state.path ? [] : state.path.split('/').slice(0, -1);
+    var outside = false;
+    clean.split('/').forEach(function (seg) {
+      if (seg === '' || seg === '.') return;
+      if (seg === '..') { if (!parts.length) outside = true; parts.pop(); }
+      else parts.push(seg);
+    });
+    if (outside || !parts.length) return null;
+    var path = parts.join('/');
+    if (folder.entries.has(path)) return path;
+    return folder.lower.get(path.toLowerCase()) || null;
+  }
+
+  function entryFile(path) {
+    var entry = folder.entries.get(path);
+    return entry.file ? Promise.resolve(entry.file) : entry.handle.getFile();
+  }
+  function urlFor(path) {
+    var current = folder;
+    return entryFile(path).then(function (file) {
+      if (folder !== current) throw new Error('folder changed');
+      if (!blobUrls.has(path)) blobUrls.set(path, URL.createObjectURL(file));
+      return blobUrls.get(path);
+    });
+  }
+
+  function markMissing(img, ref) {
+    var note = document.createElement('span');
+    note.className = 'img-missing';
+    note.textContent = 'Image not shown: ' + ref;
+    img.replaceWith(note);
+  }
+
+  /* Point pictures at the folder's files and tag links to neighbouring files. */
+  function linkAssets(root) {
+    var pending = [];
+    root.querySelectorAll('img').forEach(function (img) {
+      var ref = img.getAttribute('src') || '';
+      if (!isRelative(ref)) return;
+      var path = folder ? resolvePath(ref) : null;
+      if (!path) { markMissing(img, ref); return; }
+      if (blobUrls.has(path)) { img.src = blobUrls.get(path); return; }
+      img.removeAttribute('src');
+      pending.push({ img: img, path: path, ref: ref });
+    });
+    root.querySelectorAll('a[href]').forEach(function (a) {
+      var href = a.getAttribute('href');
+      if (isRelative(href)) {
+        a.dataset.rel = href;
+      } else if (href.charAt(0) !== '#') {
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+      }
+    });
+    return pending;
+  }
+
+  function updateAssetNote() {
+    var n = output.querySelectorAll('.img-missing').length;
+    var subject = n === 1 ? '1 linked image is' : n + ' linked images are';
+    if (pendingHandle && n) {
+      setAssetNote('Reconnect “' + pendingHandle.name + '” to show linked images.', { label: 'Reconnect', run: reconnectFolder });
+    } else if (!n) {
+      setAssetNote(folder && !folder.md.length ? '“' + folder.name + '” has no Markdown files.' : '');
+    } else if (!canPickFolder) {
+      setAssetNote(subject + ' not shown. This browser cannot open folders.');
+    } else if (!folder) {
+      setAssetNote(subject + ' not shown.', { label: 'Open folder', run: pickFolder });
+    } else if (!state.path) {
+      setAssetNote(subject + ' not in “' + folder.name + '”.', { label: 'Open another folder', run: pickFolder });
+    } else {
+      setAssetNote(subject + ' missing from “' + folder.name + '”.');
+    }
+  }
+
+  function updateFolderUI() {
+    folderBox.hidden = !folder;
+    fileName.hidden = !!folder;
+    if (!folder) return;
+    folderNameEl.textContent = folder.name + '/';
+    folderNameEl.title = folder.name;
+    folderSelect.textContent = '';
+    function add(value, label, disabled) {
+      var option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      option.disabled = !!disabled;
+      folderSelect.appendChild(option);
+    }
+    if (!state.path) add('', state.name);
+    else if (folder.md.indexOf(state.path) < 0) add(state.path, state.path);
+    folder.md.forEach(function (path) { add(path, path); });
+    add('', '──────────', true);
+    add('::close', 'Close folder');
+    folderSelect.value = state.path || '';
+  }
+
+  function makeFolder(name, entries, handle, capped) {
+    var lower = new Map(), md = [];
+    entries.forEach(function (_, path) {
+      if (!lower.has(path.toLowerCase())) lower.set(path.toLowerCase(), path);
+      if (MD_FILE.test(path)) md.push(path);
+    });
+    function dir(path) { var i = path.lastIndexOf('/'); return i < 0 ? '' : path.slice(0, i); }
+    var order = { numeric: true, sensitivity: 'base' };
+    md.sort(function (a, b) {
+      return dir(a).localeCompare(dir(b), undefined, order) || a.localeCompare(b, undefined, order);
+    });
+    return { name: name, entries: entries, lower: lower, md: md, handle: handle, capped: capped };
+  }
+
+  async function walk(dirHandle, prefix, entries) {
+    for await (var item of dirHandle.values()) {
+      if (entries.size >= MAX_FOLDER_FILES) return true;
+      if (item.name.charAt(0) === '.' || item.name === 'node_modules') continue;
+      if (item.kind === 'directory') {
+        if (await walk(item, prefix + item.name + '/', entries)) return true;
+      } else {
+        entries.set(prefix + item.name, { handle: item });
+      }
+    }
+    return false;
+  }
+
+  /* Remembers the chosen folder between visits (browsers that support it). */
+  function remember(op, value) {
+    return new Promise(function (resolve, reject) {
+      if (!window.indexedDB) { reject(new Error('no storage')); return; }
+      var open = indexedDB.open('raute', 1);
+      open.onupgradeneeded = function () { open.result.createObjectStore('kv'); };
+      open.onerror = function () { reject(open.error); };
+      open.onsuccess = function () {
+        var db = open.result;
+        try {
+          var os = db.transaction('kv', op === 'get' ? 'readonly' : 'readwrite').objectStore('kv');
+          var req = op === 'get' ? os.get('folder') : op === 'put' ? os.put(value, 'folder') : os.delete('folder');
+          req.onsuccess = function () { resolve(req.result); db.close(); };
+          req.onerror = function () { reject(req.error); db.close(); };
+        } catch (e) { db.close(); reject(e); }
+      };
+    }).catch(function () { return undefined; });
+  }
+
+  /* Where inside the folder is a file that was opened on its own? */
+  async function locate(meta) {
+    if (meta.handle && folder.handle && typeof folder.handle.resolve === 'function') {
+      try {
+        var parts = await folder.handle.resolve(meta.handle);
+        if (parts && parts.length && folder.entries.has(parts.join('/'))) return parts.join('/');
+      } catch (e) { /* fall back to matching by name */ }
+    }
+    var named = [];
+    folder.entries.forEach(function (_, path) {
+      if (path.split('/').pop() === meta.name) named.push(path);
+    });
+    for (var i = 0; i < named.length && i < 50; i++) {
+      try {
+        var f = await entryFile(named[i]);
+        if (f.size === meta.size && f.lastModified === meta.lastModified) return named[i];
+      } catch (e) { /* unreadable, try the next one */ }
+    }
+    return named.length === 1 ? named[0] : null;
+  }
+
+  function relocate() {
+    if (!folder || !lastFile) return;
+    var current = folder, meta = lastFile;
+    locate(meta).then(function (path) {
+      if (folder !== current || lastFile !== meta || !path) return;
+      state.path = path;
+      updateFolderUI();
+      render();
+      save();
+    });
+  }
+
+  function openFromFolder(path) {
+    var current = folder;
+    return entryFile(path).then(function (file) {
+      if (file.size > 5 * 1024 * 1024) throw new Error('too large');
+      return file.text();
+    }).then(function (text) {
+      if (folder !== current) return;
+      cleared = null;
+      lastFile = null;
+      state.path = path;
+      load(text, path.split('/').pop());
+      setNotice('Opened ' + path, false);
+      document.getElementById('preview').scrollTop = 0;
+    }).catch(function (e) {
+      setNotice(e && e.message === 'too large'
+        ? path + ' is larger than 5 MB. Open a smaller file.'
+        : 'Could not read ' + path + '.', false);
+      updateFolderUI();
+    });
+  }
+
+  function releaseFolder() {
+    blobUrls.forEach(function (url) { URL.revokeObjectURL(url); });
+    blobUrls.clear();
+    folder = null;
+  }
+
+  function closeFolder() {
+    releaseFolder();
+    pendingHandle = null;
+    state.path = null;
+    remember('delete');
+    updateFolderUI();
+    render();
+    save();
+  }
+
+  async function connectFolder(next, restoring) {
+    var previous = state.path;
+    releaseFolder();
+    folder = next;
+    pendingHandle = null;
+    var path = null;
+    if (lastFile) path = await locate(lastFile);
+    else if (previous && folder.entries.has(previous)) path = previous;
+    if (folder !== next) return;
+    state.path = path;
+    var replaceable = !lastFile &&
+      (state.name === SAMPLE_NAME || state.text.trim() === '' || (!!previous && !restoring));
+    if (!path && !restoring && replaceable && folder.md.length) {
+      var first = folder.md.filter(function (p) { return /^(?:readme|index)\.(?:md|markdown|mdown)$/i.test(p); })[0] || folder.md[0];
+      await openFromFolder(first);
+    } else {
+      updateFolderUI();
+      render();
+      save();
+    }
+    if (next.capped) setNotice('Only the first 20,000 files of this folder are available.', false);
+  }
+
+  async function connectHandle(handle, restoring) {
+    setAssetNote('Reading “' + handle.name + '”…');
+    var entries = new Map(), capped = false;
+    try {
+      capped = await walk(handle, '', entries);
+    } catch (e) {
+      setAssetNote('Could not read “' + handle.name + '”.');
+      return;
+    }
+    remember('put', handle);
+    await connectFolder(makeFolder(handle.name, entries, handle, capped), restoring);
+  }
+
+  async function pickFolder() {
+    if (typeof window.showDirectoryPicker !== 'function') { folderInput.click(); return; }
+    var handle;
+    try {
+      handle = await window.showDirectoryPicker({ id: 'raute', mode: 'read' });
+    } catch (e) { return; /* cancelled */ }
+    await connectHandle(handle, false);
+  }
+
+  async function reconnectFolder() {
+    var handle = pendingHandle;
+    if (!handle) return;
+    var granted = false;
+    try { granted = (await handle.requestPermission({ mode: 'read' })) === 'granted'; } catch (e) { /* declined */ }
+    if (granted) await connectHandle(handle, true);
+  }
+
+  async function restoreFolder() {
+    var handle = await remember('get');
+    if (!handle || typeof handle.queryPermission !== 'function') return;
+    var permission = 'prompt';
+    try { permission = await handle.queryPermission({ mode: 'read' }); } catch (e) { /* treat as not yet allowed */ }
+    if (permission === 'granted') await connectHandle(handle, true);
+    else if (permission === 'prompt') { pendingHandle = handle; updateAssetNote(); }
+  }
+
+  function followLink(ref) {
+    if (!folder) {
+      if (pendingHandle) setAssetNote('Reconnect “' + pendingHandle.name + '” to follow links to other files.', { label: 'Reconnect', run: reconnectFolder });
+      else if (canPickFolder) setAssetNote('This link points to another file.', { label: 'Open folder', run: pickFolder });
+      else setAssetNote('This link points to another file. This browser cannot open folders.');
+      return;
+    }
+    var path = resolvePath(ref);
+    if (!path) { setAssetNote('“' + ref + '” is not in “' + folder.name + '”.'); return; }
+    if (MD_FILE.test(path)) { openFromFolder(path); return; }
+    if (!SAFE_TO_OPEN.test(path)) {
+      setAssetNote('Links open Markdown files, images, PDFs and text files. “' + ref + '” is another kind of file.');
+      return;
+    }
+    var tab = window.open('', '_blank');
+    urlFor(path).then(function (url) { if (tab) tab.location = url; })
+      .catch(function () { if (tab) tab.close(); });
+  }
+
+  output.addEventListener('click', function (e) {
+    var a = e.target.closest ? e.target.closest('a[data-rel]') : null;
+    if (!a) return;
+    e.preventDefault();
+    followLink(a.dataset.rel);
+  });
+
+  folderSelect.addEventListener('change', function () {
+    var value = folderSelect.value;
+    if (value === '::close') closeFolder();
+    else if (value) openFromFolder(value);
+  });
+
+  folderBtn.hidden = !canPickFolder;
+  folderBtn.addEventListener('click', pickFolder);
+  folderInput.addEventListener('change', function () {
+    var files = Array.prototype.slice.call(folderInput.files);
+    folderInput.value = '';
+    if (!files.length) return;
+    var name = files[0].webkitRelativePath.split('/')[0] || 'folder';
+    var entries = new Map(), capped = false;
+    files.forEach(function (f) {
+      var path = f.webkitRelativePath.split('/').slice(1).join('/');
+      if (!path || skipPath(path)) return;
+      if (entries.size >= MAX_FOLDER_FILES) { capped = true; return; }
+      entries.set(path, { file: f });
+    });
+    connectFolder(makeFolder(name, entries, null, capped), false);
+  });
+
   function render() {
     var text = state.text;
     var blank = text.trim() === '';
+    var seq = ++renderSeq;
     empty.hidden = !blank;
     output.hidden = blank;
 
     if (blank) {
       output.innerHTML = '';
     } else if (canRender) {
-      var html = DOMPurify.sanitize(marked.parse(text, { gfm: true }));
-      output.innerHTML = html;
-      typeset(output);
-      output.querySelectorAll('a[href]').forEach(function (a) {
-        if (a.getAttribute('href').charAt(0) !== '#') {
-          a.target = '_blank';
-          a.rel = 'noopener noreferrer';
-        }
-      });
-      output.querySelectorAll('table').forEach(function (t) {
+      /* Built off-screen first, so pictures are pointed at the right files before anything loads. */
+      tpl.innerHTML = DOMPurify.sanitize(marked.parse(text, { gfm: true }));
+      var frag = tpl.content;
+      typeset(frag);
+      var pending = linkAssets(frag);
+      frag.querySelectorAll('table').forEach(function (t) {
         var wrap = document.createElement('div');
         wrap.className = 'table-wrap';
         t.parentNode.insertBefore(wrap, t);
         wrap.appendChild(t);
       });
+      output.replaceChildren(frag);
+      pending.forEach(function (p) {
+        urlFor(p.path).then(function (url) {
+          if (seq === renderSeq) p.img.src = url;
+        }).catch(function () {
+          if (seq !== renderSeq) return;
+          markMissing(p.img, p.ref);
+          updateAssetNote();
+        });
+      });
     } else {
       output.innerHTML = '<pre><code>' + escapeHtml(text) + '</code></pre>';
     }
+    updateAssetNote();
 
     var words = blank ? 0 : text.trim().split(/\s+/).length;
     var lines = text === '' ? 0 : text.split('\n').length;
@@ -538,6 +952,7 @@ Drop a `.md` file anywhere on the page to open it. After the first visit this ap
     state.name = name;
     fileName.textContent = name;
     fileName.title = name;
+    updateFolderUI();
   }
 
   function setNotice(msg, showUndo) {
@@ -561,7 +976,7 @@ Drop a `.md` file anywhere on the page to open it. After the first visit this ap
     save();
   }
 
-  function openFile(file) {
+  function openFile(file, handle) {
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
       setNotice(file.name + ' is larger than 5 MB. Open a smaller file.', false);
@@ -569,9 +984,12 @@ Drop a `.md` file anywhere on the page to open it. After the first visit this ap
     }
     file.text().then(function (text) {
       cleared = null;
+      state.path = null;
+      lastFile = { name: file.name, size: file.size, lastModified: file.lastModified, handle: handle || null };
       load(text, file.name);
       setNotice('Opened ' + file.name, false);
       document.getElementById('preview').scrollTop = 0;
+      relocate();
     }).catch(function () {
       setNotice('Could not read ' + file.name + '. Try a plain text or .md file.', false);
     });
@@ -580,7 +998,7 @@ Drop a `.md` file anywhere on the page to open it. After the first visit this ap
   var frame = 0;
   source.addEventListener('input', function () {
     state.text = source.value;
-    if (state.name === 'sample.md (example)') setName('Untitled');
+    if (state.name === SAMPLE_NAME) setName('Untitled');
     if (cleared) { cleared = null; setNotice('', false); }
     cancelAnimationFrame(frame);
     frame = requestAnimationFrame(render);
@@ -602,7 +1020,9 @@ Drop a `.md` file anywhere on the page to open it. After the first visit this ap
 
   document.getElementById('clear-btn').addEventListener('click', function () {
     if (state.text === '') return;
-    cleared = { text: state.text, name: state.name };
+    cleared = { text: state.text, name: state.name, path: state.path, lastFile: lastFile };
+    state.path = null;
+    lastFile = null;
     load('', 'Untitled');
     setNotice('Cleared.', true);
     source.focus();
@@ -610,6 +1030,8 @@ Drop a `.md` file anywhere on the page to open it. After the first visit this ap
 
   undoBtn.addEventListener('click', function () {
     if (!cleared) return;
+    state.path = cleared.path;
+    lastFile = cleared.lastFile;
     load(cleared.text, cleared.name);
     cleared = null;
     setNotice('Restored.', false);
@@ -642,7 +1064,17 @@ Drop a `.md` file anywhere on the page to open it. After the first visit this ap
     e.preventDefault();
     dragDepth = 0;
     drop.hidden = true;
-    openFile(e.dataTransfer.files[0]);
+    var dropped = e.dataTransfer.files[0];
+    var item = e.dataTransfer.items && e.dataTransfer.items[0];
+    if (item && typeof item.getAsFileSystemHandle === 'function') {
+      /* Where the browser allows it, a dropped folder is opened as a folder. */
+      item.getAsFileSystemHandle().then(function (handle) {
+        if (handle && handle.kind === 'directory') connectHandle(handle, false);
+        else openFile(dropped, handle || null);
+      }).catch(function () { openFile(dropped); });
+      return;
+    }
+    openFile(dropped);
   });
 
   function start(data) {
@@ -655,8 +1087,9 @@ Drop a `.md` file anywhere on the page to open it. After the first visit this ap
       } catch (e) { /* storage unavailable */ }
     }
     if (saved) {
-      var isSample = saved.name === 'sample.md (example)';
+      var isSample = saved.name === SAMPLE_NAME;
       state.text = isSample ? SAMPLE : saved.text;
+      state.path = !isSample && typeof saved.path === 'string' ? saved.path : null;
       state.name = typeof saved.name === 'string' ? saved.name : 'Untitled';
       if (saved.view === 'source' || saved.view === 'split' || saved.view === 'preview') state.view = saved.view;
     }
@@ -669,11 +1102,14 @@ Drop a `.md` file anywhere on the page to open it. After the first visit this ap
   }
 
   start(null);
+  restoreFolder();
 
   /* Installed app: a .md file opened with it from the file manager lands here. */
   if ('launchQueue' in window) {
     window.launchQueue.setConsumer(function (params) {
-      if (params.files && params.files.length) params.files[0].getFile().then(openFile);
+      if (!params.files || !params.files.length) return;
+      var handle = params.files[0];
+      handle.getFile().then(function (file) { openFile(file, handle); });
     });
   }
 

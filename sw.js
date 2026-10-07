@@ -1,6 +1,6 @@
 /* Raute: keeps a copy of every file so the app opens without a connection.
    Change VERSION whenever you change any file, so browsers fetch the new copies. */
-const VERSION = 'v2';
+const VERSION = 'v3';
 const CACHE = 'raute-' + VERSION;
 const ASSETS = [
   "./",
@@ -8,6 +8,9 @@ const ASSETS = [
   "manifest.webmanifest",
   "icons/icon.svg",
   "icons/icon-192.png",
+  "icons/icon-512.png",
+  "icons/icon-maskable-512.png",
+  "icons/apple-touch-icon.png",
   "vendor/fonts.css",
   "vendor/katex.min.css",
   "vendor/marked.min.js",
