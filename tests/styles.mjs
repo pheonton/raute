@@ -56,4 +56,19 @@ await type('# Plain\n\ntext'); await sleep(200);
 r = await evaluate(`getComputedStyle(document.querySelector('#output h1')).fontSize`);
 c.report('a plain document looks as before', r === '33px', r);
 
+// 6. Printing a plain document: 11pt text, tight lines, small headings.
+await type('# One\n\n## Two\n\n### Three\n\nBody text.');
+await sleep(200);
+await send('Emulation.setEmulatedMedia', { media: 'print' });
+const printed = () => evaluate(`(() => { const o = document.getElementById('output'); const cs = (sel) => o.querySelector(sel) ? getComputedStyle(o.querySelector(sel)) : {};
+  const pt = (px) => Math.round(parseFloat(px) * 0.75 * 10) / 10;
+  return { p: pt(cs('p').fontSize), line: Math.round(parseFloat(cs('p').lineHeight) / parseFloat(cs('p').fontSize) * 100) / 100,
+    h1: pt(cs('h1').fontSize), h2: pt(cs('h2').fontSize), h3: pt(cs('h3').fontSize) }; })()`);
+r = await printed();
+c.report('print: 11pt text, line spacing 1.35, headings 16/13/11.5pt', r.p === 11 && r.line === 1.35 && r.h1 === 16 && r.h2 === 13 && r.h3 === 11.5, r);
+await type(worksheet); await sleep(200);
+r = await printed();
+c.report('print: a file\'s own <style> still wins', r.h1 === 17 && r.p === 10, r);
+await send('Emulation.setEmulatedMedia', { media: '' });
+
 c.finish(ws);

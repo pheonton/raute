@@ -358,7 +358,7 @@
   }
 
   /* ---------- printing: only the rendered document, on white ---------- */
-  @page { margin: 18mm; }
+  @page { margin: 15mm; }
   @media print {
     :root:root:root {
       --bg: #ffffff;
@@ -378,7 +378,16 @@
     main, main[data-view] { display: block; }
     main[data-view="source"] .preview { display: block; }
     .preview { overflow: visible; padding: 0; }
-    .md { max-width: none; font-size: 11pt; }
+    /* paper needs less air than a screen: 11pt text, tighter lines and gaps, smaller headings */
+    .md { max-width: none; font-size: 11pt; line-height: 1.35; }
+    .md p, .md ul, .md ol, .md blockquote, .md pre, .md .table-wrap, .md .math-block { margin: 0 0 0.6em; }
+    .md li + li { margin-top: 0.1em; }
+    .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { margin: 1.1em 0 0.35em; }
+    .md h1 { font-size: 16pt; }
+    .md h2 { font-size: 13pt; }
+    .md h3 { font-size: 11.5pt; }
+    .md h4, .md h5, .md h6 { font-size: 11pt; }
+    .md hr { margin: 1.2em 0; }
     .md pre { white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; border: 1px solid var(--rule); }
     .md .table-wrap, .md .math-block, .md .math-inline .katex-display { overflow: visible; }
     .md pre, .md blockquote, .md tr, .md img, .md .math-block { break-inside: avoid; }
