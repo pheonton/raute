@@ -41,6 +41,13 @@ c.report('cannot hide or restyle Raute itself', r.body === 'flex' && r.bar === '
 c.report('nothing is loaded from outside', r.bg === 'none' && !/example\.com/.test(r.sheet), r);
 c.report('a plain rule without !important still wins', r.h1 === 'rgb(0, 128, 0)', r);
 
+// 3b. Named list markers (@counter-style) work.
+await type('<style type="text/css">\n    @counter-style alpha-paren { system: extends lower-alpha; suffix: ") "; }\n    ol { list-style-type: alpha-paren; }\n</style>\n\n1. first\n2. second');
+await sleep(300);
+r = await evaluate(`({ type: getComputedStyle(document.querySelector('#output ol')).listStyleType,
+  rule: document.adoptedStyleSheets.some((s) => [...s.cssRules].some((x) => x instanceof CSSCounterStyleRule && x.name === 'alpha-paren')) })`);
+c.report('@counter-style: lists show a) b) c)', r.type === 'alpha-paren' && r.rule, r);
+
 // 4. <style> inside a code block is just text.
 await type('```html\n<style>h1 { color: rgb(255, 0, 0) }</style>\n```\n\n# Heading');
 await sleep(300);

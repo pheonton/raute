@@ -40,7 +40,8 @@ after you stop typing. The top bar shows whether changes are saved.
 A `<style>` block in a Markdown file styles the preview and the printout, for
 example to fit a worksheet on one sheet of paper. Its rules only reach the
 document, never Raute's own buttons, and they win over Raute's default look.
-`@page` (paper size and margins) is kept. Anything that would load a file
+`@page` (paper size and margins) and `@counter-style` (own list markers, such
+as a), b), c)) are kept. Anything that would load a file
 (`url(…)`, `@import`, web fonts) is left out, so Raute stays offline. This
 needs a browser that supports CSS `@scope` (current Chrome, Edge and Safari);
 browsers without it ignore the block.
