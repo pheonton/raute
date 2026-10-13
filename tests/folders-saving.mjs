@@ -63,7 +63,7 @@ await check('file from the folder brings it back', { folder: 'docs/', selected: 
 await evaluate(`__pick('file-input', [__mk('notes.md', '# Notes\\n', null, 5000)]); 1`);
 await evaluate(`document.getElementById('aside-btn').click(); 1`);
 await check('Back returns to other.md', { folder: 'docs/', selected: 'other.md', aside: null, heading: 'Other' });
-await evaluate(`document.getElementById('tree-close').click();
+await evaluate(`
   __pick('file-input', [__mk('notes.md', '# Notes\\n', null, 5000)]); 1`);
 await sleep(400);
 await evaluate(`__pick('folder-input', __folder); 1`);
@@ -75,7 +75,6 @@ await check('typed text keeps using the folder', { folder: 'docs/', heading: 'Ty
 
 // ---------- Open folder starts next to the file ----------
 await evaluate(`
-  document.getElementById('tree-close').click();
   window.__fh = { kind: 'file', name: 'deep.md', getFile: async () => __mk('deep.md', '# Deep\\n\\n![a](../../img/a.png)\\n![b](pics/b.png)\\n', null, 7000) };
   window.showOpenFilePicker = async () => [__fh];
   window.showDirectoryPicker = (o) => { window.__dirOpts = o; window.__noteDuring = document.getElementById('asset-note').textContent; return Promise.reject(new DOMException('x', 'AbortError')); };

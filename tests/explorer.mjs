@@ -83,7 +83,7 @@ await is('Ctrl+P is left to the browser (printing)', `!__key('p', { ctrlKey: tru
 
 // Phone: the tree slides in and gets out of the way.
 await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 800, deviceScaleFactor: 1, mobile: true });
-await evaluate(`document.getElementById('tree-close').click(); __openFolder(); 1`);
+await evaluate(`__openFolder(); 1`);
 await is('on a phone the tree starts hidden', `!__tree().shown && !document.getElementById('folder-box').hidden`);
 await evaluate(`document.getElementById('tree-btn').click(); 1`);
 await is('the button slides it in over the page', `__tree().shown && getComputedStyle(document.getElementById('tree')).position === 'fixed'`);
@@ -92,8 +92,10 @@ await evaluate(`document.querySelector('.tree-file[data-path="Mathe/Bruch.md"]')
 await is('opening a file closes it again', `!__tree().shown && __tree().heading === 'Bruch'`);
 await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
 
-// Closing the folder.
-await evaluate(`localStorage.removeItem('raute-tree'); document.getElementById('tree-close').click(); 1`);
-await is('× closes the folder and the tree', `!__tree().shown && document.getElementById('folder-box').hidden`);
+// × hides the tree; the folder stays open.
+await evaluate(`if (document.getElementById('tree').hidden) document.getElementById('tree-btn').click(); 1`);
+await is('the tree is shown again', `__tree().shown`);
+await evaluate(`document.getElementById('tree-close').click(); 1`);
+await is('× hides the tree, the folder stays open', `!__tree().shown && !document.getElementById('folder-box').hidden && localStorage.getItem('raute-tree') === 'hidden'`);
 
 c.finish(ws);

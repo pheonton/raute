@@ -61,7 +61,7 @@ appear somewhere in the path, ignoring case and accents, so `10 ener` finds
 `Physik/10/Energie/energie-aufgaben.md`. **Ctrl+K** jumps to the filter box,
 ↑ and ↓ move through the matches, Enter opens the marked one and Esc clears
 the filter. (Ctrl+P stays with the browser, for printing.) The button next
-to the folder name hides or shows the tree, × closes the folder. On a phone
+to the folder name hides or shows the tree, and × in the tree hides it. On a phone
 the tree slides in over the page.
 
 In Chrome and Edge the folder dialog opens in the folder of the file you are

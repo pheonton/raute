@@ -505,7 +505,7 @@
   <div class="tree-head">
     <span class="tree-name" id="tree-name"></span>
     <span class="tree-count" id="tree-count"></span>
-    <button type="button" class="tree-close" id="tree-close" title="Close folder" aria-label="Close folder">×</button>
+    <button type="button" class="tree-close" id="tree-close" title="Hide the files" aria-label="Hide the files">×</button>
   </div>
   <input type="search" class="tree-filter" id="tree-filter" placeholder="Filter files (Ctrl+K)" aria-label="Filter files" autocomplete="off" spellcheck="false">
   <div class="tree-list" id="tree-list"></div>
@@ -1069,14 +1069,16 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       else treeFilter.blur();
     }
   });
-  treeBtn.addEventListener('click', function () {
-    setTreeOpen(!treeOpen);
+  /* The button in the top bar shows and hides the tree, × hides it. */
+  function showTree(open) {
+    setTreeOpen(open);
     if (!phone.matches) {
-      treeWanted = treeOpen;
-      try { localStorage.setItem('raute-tree', treeOpen ? 'shown' : 'hidden'); } catch (e) { /* storage unavailable */ }
+      treeWanted = open;
+      try { localStorage.setItem('raute-tree', open ? 'shown' : 'hidden'); } catch (e) { /* storage unavailable */ }
     }
-  });
-  document.getElementById('tree-close').addEventListener('click', function () { closeFolder(); });
+  }
+  treeBtn.addEventListener('click', function () { showTree(!treeOpen); });
+  document.getElementById('tree-close').addEventListener('click', function () { showTree(false); treeBtn.focus(); });
   window.addEventListener('keydown', function (e) {
     if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k' && folder) {
       e.preventDefault();
@@ -1196,14 +1198,6 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     blobUrls.forEach(function (url) { URL.revokeObjectURL(url); });
     blobUrls.clear();
     folder = null;
-  }
-
-  function closeFolder() {
-    releaseFolder();
-    aside = null;
-    state.path = null;
-    updateFolderUI();
-    render();
   }
 
   async function connectFolder(next) {
