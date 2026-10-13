@@ -765,18 +765,40 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     var hit = homeLookup;
     if (hit.file === meta && hit.list === recent && hit.up === up) return hit.handle;
     var mine = homeLookup = { file: meta, list: recent, up: up, handle: null };
-    (async function () {
-      var best = null, depth = Infinity;
-      for (var i = 0; i < mine.list.length; i++) {
-        var parts = null;
-        try { parts = await mine.list[i].resolve(meta.handle); } catch (e) { /* not reachable */ }
-        if (parts && parts.length - 1 >= up && parts.length < depth) { best = mine.list[i]; depth = parts.length; }
-      }
+    findHome(meta, mine.list, up).then(function (best) {
       if (homeLookup !== mine || !best) return;
       mine.handle = best;
       updateAssetNote();
-    })();
+    });
     return null;
+  }
+
+  /* The closest folder in list that holds the file and reaches `up` levels above it. */
+  async function findHome(meta, list, up) {
+    var best = null, depth = Infinity;
+    for (var i = 0; i < list.length; i++) {
+      var parts = null;
+      try { parts = await list[i].resolve(meta.handle); } catch (e) { /* not reachable */ }
+      if (parts && parts.length - 1 >= up && parts.length < depth) { best = list[i]; depth = parts.length; }
+    }
+    return best;
+  }
+
+  /* A file with pictures or links to neighbouring files opens its recent folder by
+     itself, when the browser already allows it ("Allow on every visit"). Without
+     that, a click is needed and the highlighted button in the top bar offers it. */
+  async function autoOpenHome() {
+    var meta = lastFile;
+    if (folder || !meta || !meta.handle || !recent.length) return;
+    if (!output.querySelector('.img-missing, a[data-rel]')) return;
+    var home = await findHome(meta, recent, levelsUp());
+    if (!home || lastFile !== meta || folder) return;
+    var permission = 'prompt';
+    try { permission = await home.queryPermission({ mode: 'read' }); } catch (e) { /* treat as not allowed */ }
+    if (permission !== 'granted' || lastFile !== meta || folder) return;
+    if (await connectHandle(home) === 'ok' && folder && folder.handle === home) {
+      setNotice('Opened “' + home.name + '” for the linked files.', false);
+    }
   }
 
   function updateFolderUI() {
@@ -1058,6 +1080,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       if (!Array.isArray(list)) return;
       recent = list.filter(function (h) { return h && h.kind === 'directory'; }).slice(0, MAX_RECENT);
       updateRecentUI();
+      autoOpenHome(); // a file from the file manager may have arrived first
     });
   }
 
@@ -1523,6 +1546,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       load(text, file.name);
       setNotice('Opened ' + file.name, false);
       document.getElementById('preview').scrollTop = 0;
+      autoOpenHome();
     }).catch(function () {
       setNotice('Could not read ' + file.name + '. Try a plain text or .md file.', false);
     });

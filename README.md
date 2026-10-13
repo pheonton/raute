@@ -73,7 +73,8 @@ In Chrome and Edge, **Recent** next to **Open folder** lists the last 10
 folders you opened. Raute keeps only the browser's reference to them, not
 their contents. The first time you reopen one, the browser asks for access
 and offers **Allow on every visit**; after that, recent folders open with one
-click. A folder that was moved or deleted drops off the list.
+click. When you open a file with pictures or links to neighbouring files and
+an allowed recent folder holds it, Raute opens that folder by itself. A folder that was moved or deleted drops off the list.
 
 ## Updating
 

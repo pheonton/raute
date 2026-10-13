@@ -71,6 +71,25 @@ await sleep(600);
 await is('no matching recent folder: plain Open folder, still highlighted',
   `document.getElementById('asset-btn').textContent === 'Open folder' && document.getElementById('asset-btn').classList.contains('attention')`);
 
+// ---------- opening automatically ----------
+// __home is now allowed (as after "Allow on every visit"): no click needed.
+await evaluate(`{ const s = document.getElementById('folder-select'); s.value = '::close'; s.dispatchEvent(new Event('change')); }
+  __home.perm = 'granted'; window.__dialog = false;
+  window.showOpenFilePicker = async () => [__file]; document.getElementById('file-input').click(); 1`);
+await sleep(800);
+await is('an allowed recent folder opens by itself',
+  `!window.__dialog && __folderName() === 'physik/' && document.getElementById('folder-select').value === 'blaetter/blatt.md'
+   && !!document.querySelector('#output img[src^="blob:"]') && document.getElementById('notice').textContent === 'Opened “physik” for the linked files.'`);
+await evaluate(`{ const s = document.getElementById('folder-select'); s.value = '::close'; s.dispatchEvent(new Event('change')); }
+  window.__plain = { kind: 'file', name: 'plain.md', getFile: async () => new File(['# Plain, no links'], 'plain.md') };
+  __home.resolve = async (h) => (h === __file || h === __plain) ? ['blaetter', h.name] : null;
+  window.showOpenFilePicker = async () => [__plain]; document.getElementById('file-input').click(); 1`);
+await sleep(800);
+await is('a file without pictures or links does not open a folder', `__folderName() === null`);
+await evaluate(`__home.perm = 'prompt'; window.showOpenFilePicker = async () => [__file]; document.getElementById('file-input').click(); 1`);
+await sleep(800);
+await is('a folder that still needs permission is only offered', `__folderName() === null && document.getElementById('asset-btn').textContent === 'Open “physik”'`);
+
 // ---------- theme (system is dark) ----------
 const DARK = 'rgb(16, 20, 26)', LIGHT = 'rgb(238, 241, 244)';
 const bg = `getComputedStyle(document.body).backgroundColor`;
