@@ -52,7 +52,7 @@ await evaluate(`(async () => {
   __home.values = async function* () { yield dir('img', [png]); yield dir('blaetter', [blatt]); };
   __home.resolve = async (h) => h === __file ? ['blaetter', 'blatt.md'] : null;
   await __pickDir(__home);
-  { const s = document.getElementById('folder-select'); s.value = '::close'; s.dispatchEvent(new Event('change')); }
+  document.getElementById('tree-close').click();
   window.showOpenFilePicker = async () => [__file];
   document.getElementById('file-input').click();
 })()`);
@@ -63,8 +63,8 @@ await evaluate(`__home.perm = 'prompt'; window.showDirectoryPicker = () => { win
   document.getElementById('asset-btn').click(); 1`);
 await sleep(600);
 await is('it opens without the folder dialog and shows the picture',
-  `!window.__dialog && __folderName() === 'physik/' && document.getElementById('folder-select').value === 'blaetter/blatt.md' && !!document.querySelector('#output img[src^="blob:"]')`);
-await evaluate(`{ const s = document.getElementById('folder-select'); s.value = '::close'; s.dispatchEvent(new Event('change')); }
+  `!window.__dialog && __folderName() === 'physik/' && (document.querySelector('#tree-list [aria-current="true"]') || {dataset: {}}).dataset.path === 'blaetter/blatt.md' && !!document.querySelector('#output img[src^="blob:"]')`);
+await evaluate(`document.getElementById('tree-close').click();
   window.__other = { kind: 'file', name: 'x.md', getFile: async () => new File(['![p](p.png)'], 'x.md') };
   window.showOpenFilePicker = async () => [__other]; document.getElementById('file-input').click(); 1`);
 await sleep(600);
@@ -73,14 +73,14 @@ await is('no matching recent folder: plain Open folder, still highlighted',
 
 // ---------- opening automatically ----------
 // __home is now allowed (as after "Allow on every visit"): no click needed.
-await evaluate(`{ const s = document.getElementById('folder-select'); s.value = '::close'; s.dispatchEvent(new Event('change')); }
+await evaluate(`document.getElementById('tree-close').click();
   __home.perm = 'granted'; window.__dialog = false;
   window.showOpenFilePicker = async () => [__file]; document.getElementById('file-input').click(); 1`);
 await sleep(800);
 await is('an allowed recent folder opens by itself',
-  `!window.__dialog && __folderName() === 'physik/' && document.getElementById('folder-select').value === 'blaetter/blatt.md'
+  `!window.__dialog && __folderName() === 'physik/' && (document.querySelector('#tree-list [aria-current="true"]') || {dataset: {}}).dataset.path === 'blaetter/blatt.md'
    && !!document.querySelector('#output img[src^="blob:"]') && document.getElementById('notice').textContent === 'Opened “physik” for the linked files.'`);
-await evaluate(`{ const s = document.getElementById('folder-select'); s.value = '::close'; s.dispatchEvent(new Event('change')); }
+await evaluate(`document.getElementById('tree-close').click();
   window.__plain = { kind: 'file', name: 'plain.md', getFile: async () => new File(['# Plain, no links'], 'plain.md') };
   __home.resolve = async (h) => (h === __file || h === __plain) ? ['blaetter', h.name] : null;
   window.showOpenFilePicker = async () => [__plain]; document.getElementById('file-input').click(); 1`);

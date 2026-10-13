@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
-const suites = ['folders-saving.mjs', 'recent-theme.mjs', 'styles.mjs'];
+const suites = ['folders-saving.mjs', 'explorer.mjs', 'recent-theme.mjs', 'styles.mjs'];
 
 const TYPES = {
   '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css',

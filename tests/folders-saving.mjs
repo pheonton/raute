@@ -31,7 +31,7 @@ const helpers = `
     return {
       file: $('file-name').hidden ? null : $('file-name').textContent,
       folder: $('folder-box').hidden ? null : $('folder-name').textContent,
-      selected: $('folder-box').hidden ? null : $('folder-select').value,
+      selected: $('folder-box').hidden ? null : ($('tree-list').querySelector('[aria-current="true"]') || {dataset: {}}).dataset.path || '',
       aside: $('aside-btn').hidden ? null : $('aside-btn').textContent,
       asset: $('asset-note').textContent + ($('asset-btn').hidden ? '' : ' [' + $('asset-btn').textContent + ']'),
       notice: $('notice').textContent,
@@ -63,7 +63,7 @@ await check('file from the folder brings it back', { folder: 'docs/', selected: 
 await evaluate(`__pick('file-input', [__mk('notes.md', '# Notes\\n', null, 5000)]); 1`);
 await evaluate(`document.getElementById('aside-btn').click(); 1`);
 await check('Back returns to other.md', { folder: 'docs/', selected: 'other.md', aside: null, heading: 'Other' });
-await evaluate(`{ const s = document.getElementById('folder-select'); s.value = '::close'; s.dispatchEvent(new Event('change')); }
+await evaluate(`document.getElementById('tree-close').click();
   __pick('file-input', [__mk('notes.md', '# Notes\\n', null, 5000)]); 1`);
 await sleep(400);
 await evaluate(`__pick('folder-input', __folder); 1`);
@@ -75,7 +75,7 @@ await check('typed text keeps using the folder', { folder: 'docs/', heading: 'Ty
 
 // ---------- Open folder starts next to the file ----------
 await evaluate(`
-  { const s = document.getElementById('folder-select'); s.value = '::close'; s.dispatchEvent(new Event('change')); }
+  document.getElementById('tree-close').click();
   window.__fh = { kind: 'file', name: 'deep.md', getFile: async () => __mk('deep.md', '# Deep\\n\\n![a](../../img/a.png)\\n![b](pics/b.png)\\n', null, 7000) };
   window.showOpenFilePicker = async () => [__fh];
   window.showDirectoryPicker = (o) => { window.__dirOpts = o; window.__noteDuring = document.getElementById('asset-note').textContent; return Promise.reject(new DOMException('x', 'AbortError')); };

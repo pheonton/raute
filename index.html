@@ -123,19 +123,10 @@
     font-size: 12.5px;
     color: var(--muted);
   }
-  .folder-name { flex: 0 1 auto; min-width: 0; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .folder select {
-    flex: 0 1 auto;
-    min-width: 0;
-    max-width: 100%;
-    font: inherit;
-    color: var(--ink);
-    background: var(--surface);
-    border: 1px solid var(--rule);
-    border-radius: 6px;
-    padding: 5px 6px;
-    cursor: pointer;
-  }
+  .folder-name { flex: none; max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .folder-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+  .tree-btn { display: inline-flex; padding: 4px 6px; color: var(--muted); }
+  .tree-btn[aria-expanded="true"] { color: var(--ink); background: var(--code-bg); }
   .aside-btn {
     flex: 0 1 auto;
     min-width: 0;
@@ -166,6 +157,7 @@
     font-size: 12px;
     color: var(--muted);
   }
+  .asset:has(#asset-note:empty) { flex-basis: 0; } /* takes no room until it has something to say */
   .asset button { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; margin-left: 4px; }
   .recent {
     font: inherit;
@@ -197,6 +189,19 @@
   .recent option { color: var(--ink); background: var(--surface); }
   .theme-btn { display: inline-flex; align-items: center; justify-content: center; padding: 6px 8px; }
   .theme-btn svg { display: block; margin-block: 0.75px; }
+  /* Above phone width the buttons stay on the first line and a long path is cut
+     off with … instead of pushing them down. On a wide screen notes fit in the
+     same line; on a medium one they get a line of their own. */
+  @media (min-width: 721px) {
+    .name, .controls { flex: none; }
+  }
+  @media (min-width: 1101px) {
+    .bar { flex-wrap: nowrap; }
+  }
+  @media (min-width: 721px) and (max-width: 1100px) {
+    .file, .folder { flex: 1 1 160px; }
+    .asset:not(:has(#asset-note:empty)), .save { order: 3; flex-basis: 100%; }
+  }
   .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
   button, .file-btn {
@@ -221,9 +226,71 @@
   .seg button[aria-pressed="true"] { background: var(--code-bg); color: var(--ink); font-weight: 700; }
   .seg button:focus-visible { outline-offset: -2px; }
 
+  /* ---------- file tree ---------- */
+  .work { flex: 1; min-height: 0; display: flex; }
+  .tree {
+    flex: none;
+    width: 260px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--rule);
+    background: var(--surface);
+    font-size: 13.5px;
+  }
+  .tree-head { display: flex; align-items: center; gap: 8px; padding: 8px 8px 0 12px; font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); }
+  .tree-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-weight: 700; }
+  .tree-close { border: 0; padding: 0 6px; font-size: 18px; line-height: 1.2; color: var(--muted); }
+  .tree-close:hover { color: var(--ink); }
+  .tree-filter {
+    margin: 8px 8px 6px;
+    padding: 5px 8px;
+    font: inherit;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+  }
+  .tree-list { flex: 1; min-height: 0; overflow: auto; padding: 0 6px 16px; }
+  .tree-list ul { list-style: none; margin: 0; padding: 0 0 0 12px; }
+  .tree-list > ul { padding-left: 0; }
+  .tree-list summary {
+    display: block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--muted);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tree-list summary::-webkit-details-marker { display: none; }
+  .tree-list summary::before { content: "▸"; display: inline-block; width: 1em; }
+  .tree-list details[open] > summary::before { content: "▾"; }
+  .tree-list summary:hover { color: var(--ink); background: var(--code-bg); }
+  .tree-file {
+    display: block;
+    width: 100%;
+    padding: 2px 6px 2px calc(6px + 1em);
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    font: inherit;
+    font-size: 13.5px;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tree-file:hover { background: var(--code-bg); }
+  .tree-file[aria-current="true"] { background: var(--code-bg); color: var(--accent); font-weight: 700; }
+  .tree-file.pick { box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .tree-empty { margin: 4px 8px; color: var(--muted); }
+
   /* ---------- panes ---------- */
   main {
     flex: 1;
+    min-width: 0;
     min-height: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -355,6 +422,8 @@
     .asset { order: 3; flex-basis: 100%; }
     .save { order: 3; flex-basis: 100%; }
     .asset:empty, .asset:has(#asset-note:empty) { display: none; }
+    /* the tree slides in over the page */
+    .tree { position: fixed; z-index: 20; left: 0; top: 0; bottom: 0; width: min(85vw, 320px); box-shadow: 0 0 24px rgb(0 0 0 / 0.3); }
   }
 
   /* ---------- printing: only the rendered document, on white ---------- */
@@ -374,7 +443,8 @@
     html, body { height: auto; }
     html { padding: 0; }
     body { display: block; }
-    .bar, .source, .status, .drop, .md .front-matter { display: none !important; }
+    .bar, .source, .status, .drop, .tree, .md .front-matter { display: none !important; }
+    .work { display: block; }
     main, main[data-view] { display: block; }
     main[data-view="source"] .preview { display: block; }
     .preview { overflow: visible; padding: 0; }
@@ -403,8 +473,10 @@
   <h1 class="name"><span aria-hidden="true">#</span>Raute</h1>
   <div class="file" id="file-name" title="">sample.md (example)</div>
   <div class="folder" id="folder-box" hidden>
-    <span class="folder-name" id="folder-name"></span>
-    <select id="folder-select" aria-label="Markdown files in the open folder"></select>
+    <button type="button" class="tree-btn" id="tree-btn" aria-controls="tree" aria-expanded="true" title="Show or hide the files (Ctrl+K to search)">
+      <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.5"/><path d="M6 2.75v10.5"/></svg>
+    </button>
+    <span class="folder-name" id="folder-name"></span><span class="folder-path" id="folder-path"></span>
   </div>
   <button type="button" class="aside-btn" id="aside-btn" hidden></button>
   <div class="save" id="save-box"><span id="save-note"></span> <button type="button" id="save-btn" hidden>Save</button> <button type="button" id="reload-btn" hidden>Reload</button></div>
@@ -428,6 +500,16 @@
   </div>
 </header>
 
+<div class="work">
+<nav class="tree" id="tree" aria-label="Files in the open folder" hidden>
+  <div class="tree-head">
+    <span class="tree-name" id="tree-name"></span>
+    <span class="tree-count" id="tree-count"></span>
+    <button type="button" class="tree-close" id="tree-close" title="Close folder" aria-label="Close folder">×</button>
+  </div>
+  <input type="search" class="tree-filter" id="tree-filter" placeholder="Filter files (Ctrl+K)" aria-label="Filter files" autocomplete="off" spellcheck="false">
+  <div class="tree-list" id="tree-list"></div>
+</nav>
 <main id="panes" data-view="split">
   <textarea class="source" id="source" spellcheck="false" aria-label="Markdown source" placeholder="Type or paste Markdown here, or drop a .md file anywhere on the page."></textarea>
   <section class="preview" id="preview" aria-label="Rendered preview" aria-live="off">
@@ -435,6 +517,7 @@
     <article class="md" id="output"></article>
   </section>
 </main>
+</div>
 
 <footer class="status">
   <span id="counts">0 words</span>
@@ -518,7 +601,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   var folderInput = document.getElementById('folder-input');
   var folderBox = document.getElementById('folder-box');
   var folderNameEl = document.getElementById('folder-name');
-  var folderSelect = document.getElementById('folder-select');
+  var folderPath = document.getElementById('folder-path');
   var assetNote = document.getElementById('asset-note');
   var assetBtn = document.getElementById('asset-btn');
   var asideBtn = document.getElementById('aside-btn');
@@ -810,24 +893,202 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       asideBtn.textContent = (aside.path ? 'Back to “' : 'Show “') + aside.folder.name + '”';
       asideBtn.title = 'The open file is not in “' + aside.folder.name + '”. Go back to the folder.';
     }
+    updateTree();
     if (!folder) return;
     folderNameEl.textContent = folder.name + '/';
     folderNameEl.title = folder.name;
-    folderSelect.textContent = '';
-    function add(value, label, disabled) {
-      var option = document.createElement('option');
-      option.value = value;
-      option.textContent = label;
-      option.disabled = !!disabled;
-      folderSelect.appendChild(option);
-    }
-    if (!state.path) add('', state.name);
-    else if (folder.md.indexOf(state.path) < 0) add(state.path, state.path);
-    folder.md.forEach(function (path) { add(path, path); });
-    add('', '──────────', true);
-    add('::close', 'Close folder');
-    folderSelect.value = state.path || '';
+    folderPath.textContent = state.path || state.name;
+    folderPath.title = state.path ? folder.name + '/' + state.path : state.name;
   }
+
+  /* ---------- file tree ----------
+     The open folder's subfolders and Markdown files. The filter box (Ctrl+K)
+     narrows it down: every word must appear in the path, ignoring case and
+     accents, and Enter opens the best match. */
+  var tree = document.getElementById('tree');
+  var treeList = document.getElementById('tree-list');
+  var treeFilter = document.getElementById('tree-filter');
+  var treeBtn = document.getElementById('tree-btn');
+  var phone = window.matchMedia('(max-width: 720px)');
+  var treeFor = null;        // the folder the tree shows
+  var treePath;              // the open file it last marked
+  var expanded = new Set();  // folders opened by hand
+  var pick = null;           // the file Enter opens
+  var treeOpen = false;
+  var treeWanted = true;     // on a computer the tree shows unless hidden by hand
+  try { treeWanted = localStorage.getItem('raute-tree') !== 'hidden'; } catch (e) { /* storage unavailable */ }
+
+  function fold(text) { return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+  function byName(a, b) { return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }); }
+  function baseName(path) { return path.slice(path.lastIndexOf('/') + 1); }
+
+  function renderTree() {
+    var words = fold(treeFilter.value.trim()).split(/\s+/).filter(Boolean);
+    var filtering = words.length > 0;
+    var paths = folder.md.filter(function (path) {
+      var folded = fold(path);
+      return words.every(function (w) { return folded.indexOf(w) >= 0; });
+    });
+    var total = folder.md.length;
+    document.getElementById('tree-count').textContent = filtering ? paths.length + ' of ' + total : total + (total === 1 ? ' file' : ' files');
+    treeList.textContent = '';
+    pick = null;
+    if (!paths.length) {
+      var none = document.createElement('p');
+      none.className = 'tree-empty';
+      none.textContent = filtering ? 'No file matches.' : 'No Markdown files in this folder.';
+      treeList.appendChild(none);
+      return;
+    }
+    var root = { dirs: new Map(), files: [] };
+    paths.forEach(function (path) {
+      var parts = path.split('/'), node = root;
+      for (var i = 0; i < parts.length - 1; i++) {
+        if (!node.dirs.has(parts[i])) node.dirs.set(parts[i], { dirs: new Map(), files: [], path: parts.slice(0, i + 1).join('/') });
+        node = node.dirs.get(parts[i]);
+      }
+      node.files.push(path);
+    });
+    treeList.appendChild(renderNode(root, filtering));
+    if (filtering) {
+      /* best match: most words in the file name itself, then tree order */
+      var best = -1;
+      treeList.querySelectorAll('.tree-file').forEach(function (b) {
+        var name = fold(baseName(b.dataset.path));
+        var score = words.filter(function (w) { return name.indexOf(w) >= 0; }).length * 2 + (name.indexOf(words[0]) === 0 ? 1 : 0);
+        if (score > best) { best = score; pick = b.dataset.path; }
+      });
+    }
+    markTree();
+  }
+
+  function renderNode(node, filtering) {
+    var ul = document.createElement('ul');
+    Array.from(node.dirs.keys()).sort(byName).forEach(function (name) {
+      var child = node.dirs.get(name);
+      var details = document.createElement('details');
+      details.open = filtering || expanded.has(child.path);
+      var summary = document.createElement('summary');
+      summary.textContent = name;
+      summary.title = child.path;
+      details.appendChild(summary);
+      details.appendChild(renderNode(child, filtering));
+      details.addEventListener('toggle', function () {
+        if (treeFilter.value.trim()) return; // folders opened by a filter are not remembered
+        if (details.open) expanded.add(child.path);
+        else expanded.delete(child.path);
+      });
+      var li = document.createElement('li');
+      li.appendChild(details);
+      ul.appendChild(li);
+    });
+    node.files.slice().sort(function (a, b) { return byName(baseName(a), baseName(b)); }).forEach(function (path) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tree-file';
+      b.dataset.path = path;
+      b.title = path;
+      b.textContent = baseName(path);
+      var li = document.createElement('li');
+      li.appendChild(b);
+      ul.appendChild(li);
+    });
+    return ul;
+  }
+
+  function markTree() {
+    treeList.querySelectorAll('.tree-file').forEach(function (b) {
+      b.setAttribute('aria-current', String(b.dataset.path === state.path));
+      b.classList.toggle('pick', b.dataset.path === pick);
+    });
+  }
+
+  function setTreeOpen(open) {
+    treeOpen = open;
+    tree.hidden = !(folder && treeOpen);
+    treeBtn.setAttribute('aria-expanded', String(!tree.hidden));
+  }
+
+  /* Follows the open folder and file. */
+  function updateTree() {
+    if (!folder) { treeFor = null; treePath = undefined; setTreeOpen(false); return; }
+    if (treeFor !== folder) {
+      /* a rebuilt copy of the same folder (after "Save as") keeps its state */
+      var same = treeFor && folder.handle && treeFor.handle === folder.handle;
+      if (!same) {
+        expanded = new Set();
+        treeFilter.value = '';
+        setTreeOpen(!phone.matches && treeWanted);
+      }
+      treeFor = folder;
+      treePath = undefined;
+      document.getElementById('tree-name').textContent = folder.name;
+    }
+    if (state.path === treePath) { markTree(); return; }
+    treePath = state.path;
+    if (state.path) {
+      var parts = state.path.split('/');
+      for (var i = 1; i < parts.length; i++) expanded.add(parts.slice(0, i).join('/'));
+    }
+    renderTree();
+    var current = treeList.querySelector('[aria-current="true"]');
+    if (current && !tree.hidden) current.scrollIntoView({ block: 'nearest' });
+  }
+
+  function openFromTree(path) {
+    treeFilter.value = '';
+    if (phone.matches) setTreeOpen(false);
+    renderTree();
+    if (path !== state.path) openFromFolder(path);
+  }
+
+  treeList.addEventListener('click', function (e) {
+    var b = e.target.closest('.tree-file');
+    if (b) openFromTree(b.dataset.path);
+  });
+  treeFilter.addEventListener('input', renderTree);
+  treeFilter.addEventListener('keydown', function (e) {
+    var files = Array.from(treeList.querySelectorAll('.tree-file')).filter(function (b) {
+      return b.checkVisibility ? b.checkVisibility() : !!b.offsetParent; // skips files in folded folders
+    });
+    var at = files.findIndex(function (b) { return b.dataset.path === pick; });
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!files.length) return;
+      at = e.key === 'ArrowDown' ? Math.min(files.length - 1, at + 1) : Math.max(0, at - 1);
+      pick = files[at].dataset.path;
+      markTree();
+      files[at].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      var target = pick || (files[0] && files[0].dataset.path);
+      if (target) openFromTree(target);
+    } else if (e.key === 'Escape') {
+      if (treeFilter.value) { treeFilter.value = ''; renderTree(); }
+      else if (phone.matches) setTreeOpen(false);
+      else treeFilter.blur();
+    }
+  });
+  treeBtn.addEventListener('click', function () {
+    setTreeOpen(!treeOpen);
+    if (!phone.matches) {
+      treeWanted = treeOpen;
+      try { localStorage.setItem('raute-tree', treeOpen ? 'shown' : 'hidden'); } catch (e) { /* storage unavailable */ }
+    }
+  });
+  document.getElementById('tree-close').addEventListener('click', function () { closeFolder(); });
+  window.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k' && folder) {
+      e.preventDefault();
+      setTreeOpen(true);
+      treeFilter.focus();
+      treeFilter.select();
+    }
+  });
+  /* on a phone the tree covers the page: a tap outside it closes it */
+  document.addEventListener('click', function (e) {
+    if (phone.matches && treeOpen && !tree.contains(e.target) && !treeBtn.contains(e.target)) setTreeOpen(false);
+  });
 
   function makeFolder(name, entries, handle, capped) {
     var lower = new Map(), md = [];
@@ -1125,12 +1386,6 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     if (!a) return;
     e.preventDefault();
     followLink(a.dataset.rel);
-  });
-
-  folderSelect.addEventListener('change', function () {
-    var value = folderSelect.value;
-    if (value === '::close') closeFolder();
-    else if (value) openFromFolder(value);
   });
 
   folderBtn.hidden = !canPickFolder;

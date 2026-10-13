@@ -51,9 +51,18 @@ browsers without it ignore the block.
 A web page only receives the one file it is given, not the folder around it.
 To show pictures stored next to a Markdown file, choose **Open folder** and
 pick the folder that contains the file (or a folder above it). Raute then
-resolves relative paths such as `images/plot.png` inside that folder, lists
-the folder's Markdown files in the top bar, and follows links between them.
-Hidden folders and `node_modules` are skipped.
+resolves relative paths such as `images/plot.png` inside that folder, shows
+its subfolders and Markdown files in a tree on the left, and follows links
+between them. Hidden folders and `node_modules` are skipped. A handy way to
+work is to open one parent folder that holds everything you are working on.
+
+The filter box above the tree narrows it down: every word you type must
+appear somewhere in the path, ignoring case and accents, so `10 ener` finds
+`Physik/10/Energie/energie-aufgaben.md`. **Ctrl+K** jumps to the filter box,
+↑ and ↓ move through the matches, Enter opens the marked one and Esc clears
+the filter. (Ctrl+P stays with the browser, for printing.) The button next
+to the folder name hides or shows the tree, × closes the folder. On a phone
+the tree slides in over the page.
 
 In Chrome and Edge the folder dialog opens in the folder of the file you are
 reading, so usually you only have to confirm it. If the pictures are in a
