@@ -66,7 +66,9 @@ To show pictures stored next to a Markdown file, choose **Open folder** and
 pick the folder that contains the file (or a folder above it). Raute then
 resolves relative paths such as `images/plot.png` inside that folder, shows
 its subfolders and Markdown files in a tree on the left, and follows links
-between them. Hidden folders and `node_modules` are skipped. A handy way to
+between them. Raute only keeps the files it can use (Markdown, text, PDFs
+and pictures), up to 20,000 of them; Word files, videos, archives and the
+like are skipped, as are hidden folders and `node_modules`. A handy way to
 work is to open one parent folder that holds everything you are working on.
 
 The filter box above the tree narrows it down: every word you type must

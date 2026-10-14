@@ -133,6 +133,21 @@ await evaluate(`__type('# A\\n\\n---\\n\\ntext\\n\\n---\\n'); 1`);
 await sleep(200);
 await is('a later --- is not front matter', `!document.querySelector('#output details.front-matter')`);
 
+// ---------- only usable files are kept ----------
+await evaluate(`(() => {
+  const mk = (path, text, size) => { const f = new File([text], path.split('/').pop()); Object.defineProperty(f, 'webkitRelativePath', { value: path }); return f; };
+  const files = [mk('mixed/README.md', '# Mixed\\n\\n![p](bilder/p.png)\\n\\n[Blatt](blatt.docx)'), mk('mixed/bilder/p.png', 'PNG'), mk('mixed/bilder/s.svg', '<svg/>'),
+    mk('mixed/blatt.docx', 'DOCX'), mk('mixed/video.mp4', 'MP4'), mk('mixed/archiv.zip', 'ZIP'), mk('mixed/notizen.txt', 'TXT'), mk('mixed/plan.pdf', 'PDF')];
+  window.__mixed = files.length;
+  document.getElementById('new-btn').click();
+  __pick('folder-input', files);
+})(); 1`);
+await check('a folder with other files opens normally', { folder: 'mixed/', heading: 'Mixed', img: true });
+await is('Word, video and ZIP files are skipped; the tree lists the one Markdown file', `document.getElementById('tree-count').textContent === '1 file'
+  && (() => { const t = document.querySelectorAll('#tree-list .tree-file').length; return t === 1; })()`);
+await evaluate(`document.querySelector('#output a[href="blatt.docx"]').click(); 1`);
+await is('a link to a Word file says Raute does not open it', `document.getElementById('asset-note').textContent === 'Links open Markdown files, images, PDFs and text files. “blatt.docx” is another kind of file.'`);
+
 // ---------- New ----------
 await evaluate(`__type('# Keep me'); document.getElementById('view-preview').click(); document.getElementById('new-btn').click(); 1`);
 await is('New opens an empty, untitled document in Split', `document.getElementById('source').value === '' && __ui().view === 'split'

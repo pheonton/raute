@@ -770,6 +770,10 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
      point to neighbouring files are looked up in a folder the user opens. */
   var MD_FILE = /\.(?:md|markdown|mdown)$/i;
   var SAFE_TO_OPEN = /\.(?:png|jpe?g|gif|webp|avif|bmp|pdf|txt)$/i;
+  /* Files Raute can use: documents, pictures, PDFs, text. Everything else in a
+     folder (Word files, videos, archives, …) is skipped and does not count
+     toward the limit. */
+  var USEFUL = /\.(?:md|markdown|mdown|txt|pdf|png|jpe?g|gif|webp|avif|bmp|svg)$/i;
   var MAX_FOLDER_FILES = 20000;
   var canPickFolder = typeof window.showDirectoryPicker === 'function' ||
     'webkitdirectory' in HTMLInputElement.prototype;
@@ -1172,11 +1176,11 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
 
   async function walk(dirHandle, prefix, entries) {
     for await (var item of dirHandle.values()) {
-      if (entries.size >= MAX_FOLDER_FILES) return true;
       if (item.name.charAt(0) === '.' || item.name === 'node_modules') continue;
       if (item.kind === 'directory') {
         if (await walk(item, prefix + item.name + '/', entries)) return true;
-      } else {
+      } else if (USEFUL.test(item.name)) {
+        if (entries.size >= MAX_FOLDER_FILES) return true;
         entries.set(prefix + item.name, { handle: item });
       }
     }
@@ -1297,7 +1301,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       updateFolderUI();
       render();
     }
-    if (next.capped) setNotice('Only the first 20,000 files of this folder are available.', false);
+    if (next.capped) setNotice('This folder has more than 20,000 documents and pictures; only the first 20,000 are available.', false);
   }
 
   async function connectHandle(handle) {
@@ -1473,13 +1477,14 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       else setAssetNote('This link points to another file. This browser cannot open folders.');
       return;
     }
-    var path = resolvePath(ref);
-    if (!path) { setAssetNote('“' + ref + '” is not in “' + folder.name + '”.'); return; }
-    if (MD_FILE.test(path)) { openFromFolder(path); return; }
-    if (!SAFE_TO_OPEN.test(path)) {
+    var target = ref.split('#')[0].split('?')[0];
+    if (!MD_FILE.test(target) && !SAFE_TO_OPEN.test(target)) {
       setAssetNote('Links open Markdown files, images, PDFs and text files. “' + ref + '” is another kind of file.');
       return;
     }
+    var path = resolvePath(ref);
+    if (!path) { setAssetNote('“' + ref + '” is not in “' + folder.name + '”.'); return; }
+    if (MD_FILE.test(path)) { openFromFolder(path); return; }
     var tab = window.open('', '_blank');
     urlFor(path).then(function (url) { if (tab) tab.location = url; })
       .catch(function () { if (tab) tab.close(); });
@@ -1502,7 +1507,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     var entries = new Map(), capped = false;
     files.forEach(function (f) {
       var path = f.webkitRelativePath.split('/').slice(1).join('/');
-      if (!path || skipPath(path)) return;
+      if (!path || skipPath(path) || !USEFUL.test(path)) return;
       if (entries.size >= MAX_FOLDER_FILES) { capped = true; return; }
       entries.set(path, { file: f });
     });
