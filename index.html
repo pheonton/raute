@@ -50,8 +50,8 @@
       --muted: #95a1b1;
       --rule: #2a323e;
       --code-bg: #212833;
-      --side: #1d232c;    /* a shade lighter than the document */
-      --side-hi: #2a323e;
+      --side: #12161d;    /* a shade darker than the document */
+      --side-hi: #222934;
       --accent: #5fc9c0;
       --error: #ff8f85;
       --warn: #fb923c;
@@ -65,8 +65,8 @@
     --muted: #95a1b1;
     --rule: #2a323e;
     --code-bg: #212833;
-    --side: #1d232c;
-    --side-hi: #2a323e;
+    --side: #12161d;
+    --side-hi: #222934;
     --accent: #5fc9c0;
     --error: #ff8f85;
     --warn: #fb923c;
@@ -137,7 +137,7 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 6px 16px;
-    padding: 4px 16px;
+    padding: 0 16px;
     border-bottom: 1px solid var(--rule);
     background: var(--surface);
   }
@@ -203,7 +203,8 @@
     color: var(--muted);
   }
   .asset:has(#asset-note:empty) { flex: 0 0 0; } /* takes no room until it has something to say */
-  .bar .seg { flex: none; margin-left: auto; }
+  .bar .seg { flex: none; align-self: stretch; margin-left: auto; border-block: 0; } /* fills the line's full height */
+  .bar .icon-btn { margin-block: 4px; }
   .asset button { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; margin-left: 4px; }
   /* Recent: a list that opens on hover (or click / keys) beside the sidebar */
   .recent-wrap { position: relative; }
@@ -257,7 +258,7 @@
   }
   @media (min-width: 721px) and (max-width: 1200px) {
     .file, .folder { flex: 1 1 160px; }
-    .asset:not(:has(#asset-note:empty)), .save { order: 3; flex-basis: 100%; }
+    .asset:not(:has(#asset-note:empty)), .save { order: 3; flex-basis: 100%; padding-bottom: 6px; }
   }
 
   button {
@@ -464,8 +465,8 @@
     .md { font-size: 16px; }
     .file, .folder { flex: 1 1 0; }
     .aside-btn { order: 3; max-width: 100%; }
-    .asset { order: 3; flex-basis: 100%; }
-    .save { order: 3; flex-basis: 100%; }
+    .asset { order: 3; flex-basis: 100%; padding-bottom: 6px; }
+    .save { order: 3; flex-basis: 100%; padding-bottom: 6px; }
     .asset:empty, .asset:has(#asset-note:empty) { display: none; }
     .recent-list { position: static; margin: 4px 0 2px 26px; box-shadow: none; max-width: none; }
     .recent-list::before { display: none; }
