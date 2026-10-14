@@ -1,6 +1,6 @@
 /* Raute: keeps a copy of every file so the app opens without a connection.
    Change VERSION whenever you change any file, so browsers fetch the new copies. */
-const VERSION = 'v21';
+const VERSION = 'v22';
 const CACHE = 'raute-' + VERSION;
 const ASSETS = [
   "./",

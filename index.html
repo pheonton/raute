@@ -1026,8 +1026,16 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       summary.textContent = name;
       summary.title = child.path;
       details.appendChild(summary);
-      details.appendChild(renderNode(child, filtering));
+      /* A closed folder's contents are only built when it is first opened. */
+      var built = false;
+      function build() {
+        if (built) return;
+        built = true;
+        details.appendChild(renderNode(child, filtering));
+      }
+      if (details.open) build();
       details.addEventListener('toggle', function () {
+        if (details.open && !built) { build(); markTree(); }
         if (treeFilter.value.trim()) return; // folders opened by a filter are not remembered
         if (details.open) expanded.add(child.path);
         else expanded.delete(child.path);

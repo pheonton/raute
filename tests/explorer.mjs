@@ -55,6 +55,9 @@ await is('the tree shows the folder with its Markdown files',
 await is('folders without Markdown files are left out, top level collapsed',
   `(() => { const t = __tree(); return JSON.stringify(t.folders) === '["Mathe","Physik"]' && JSON.stringify(t.files) === '["README.md"]'; })()`);
 
+await is('closed folders are not built yet (only README.md exists in the page)',
+  `document.querySelectorAll('#tree .tree-file').length === 1 && !document.querySelector('#tree summary[title="Physik/10"]')`);
+
 // Clicking files and folders.
 await evaluate(`document.querySelector('#tree summary[title="Physik"]').click(); 1`);
 await is('clicking a folder opens it (numbers sort naturally: 9 before 10)', `JSON.stringify(__tree().folders) === '["Mathe","Physik","9","10"]'`);
@@ -64,6 +67,10 @@ await evaluate(`document.querySelector('.tree-file[data-path="Physik/10/Energie/
 await is('clicking a file opens it and marks it', `(() => { const t = __tree(); return t.current === 'Physik/10/Energie/energie-aufgaben.md' && t.heading === 'Energie' && t.bar === 'Physik/10/Energie/energie-aufgaben.md' && !!document.querySelector('#output img[src^="blob:"]'); })()`);
 
 // Filtering.
+await evaluate(`document.querySelector('#tree summary[title="Physik"]').click(); 1`);
+await is('closing a folder again keeps the tree as it was', `!__tree().folders.includes('9') && __tree().folders.includes('Physik')`);
+await evaluate(`__filter('bruch'); 1`);
+await is('the filter finds files in folders that were never opened', `JSON.stringify(__tree().files) === '["Mathe/Bruch.md"]'`);
 await evaluate(`__filter('10 ener'); 1`);
 await is('filtering by parts of the path', `(() => { const t = __tree(); return JSON.stringify(t.files) === '["Physik/10/Energie/energie-aufgaben.md"]' && t.count === '1 of 4'; })()`);
 await evaluate(`__filter('ubung'); 1`);
