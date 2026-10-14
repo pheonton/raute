@@ -17,9 +17,10 @@ app and the offline cache, which need a web address.
 
 ## Layout
 
-On the left, a sidebar holds the buttons (open a file or folder, clear, the
-Source / Split / Preview view and the theme) and, below them, the files of the
-open folder. It is open at every start; its button at the top hides it, and
+On the left, a sidebar holds the menu (**New**, **Open file**, **Open
+folder**, **Recent**, the Source / Split / Preview view and the theme) and,
+below it, the files of the open folder. **New** starts an empty document;
+**Undo** in the status line brings back the one before. It is open at every start; its button at the top hides it, and
 the same button above the document brings it back. On a phone it slides in
 over the page. The line above the document shows the open file and its state:
 saved or not, pictures that are not shown, a folder set aside.

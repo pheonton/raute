@@ -98,8 +98,27 @@
   .side-top { display: flex; flex-direction: column; gap: 8px; padding: 12px 12px 12px; border-bottom: 1px solid var(--rule); }
   .side-row { display: flex; align-items: center; gap: 8px; }
   .side-row .name { flex: 1; }
-  .side-row > .file-btn, .side-row > #clear-btn { flex: 1; text-align: center; }
-  .side .joined > button { flex: 1; }
+  /* New, Open file, Open folder, Recent: one line each, icon and text */
+  .menu { display: flex; flex-direction: column; gap: 1px; margin: 0 -4px; }
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    font: inherit;
+    font-size: 14px;
+    line-height: 1.3;
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+  }
+  .menu-item:hover { background: var(--code-bg); }
+  .menu-item svg { flex: none; color: var(--muted); }
+  label.menu-item:focus-within { outline: 2px solid var(--accent); outline-offset: -2px; }
   .side .seg button { flex: 1; }
   .side-empty { margin: 14px 16px; color: var(--muted); font-size: 13.5px; }
   .icon-btn { display: inline-flex; align-items: center; justify-content: center; padding: 6px 8px; color: var(--muted); }
@@ -182,28 +201,17 @@
   .asset:has(#asset-note:empty) { flex-basis: 0; } /* takes no room until it has something to say */
   .asset button { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; margin-left: 4px; }
   .recent {
+    flex: 1;
+    min-width: 0;
+    margin: -2px 0 -2px -4px; /* the browser indents a dropdown's text a little; line it up with the others */
+    padding: 0;
     font: inherit;
-    font-size: 13.5px;
-    color: var(--ink);
+    color: inherit;
     background: transparent;
-    border: 1px solid var(--rule);
-    border-radius: 6px;
-    padding: 6px 6px 6px 10px;
-    line-height: 1.3;
+    border: 0;
     cursor: pointer;
-    field-sizing: content;
-    max-width: 12em;
   }
-  .recent:hover { border-color: var(--muted); }
-
-  /* buttons that belong together share one outline */
-  .joined { display: flex; }
-  .joined > * { border-radius: 0; }
-  .joined > :first-child { border-radius: 6px 0 0 6px; }
-  .joined > :last-child { border-radius: 0 6px 6px 0; }
-  .joined > :first-child:has(+ [hidden]), .joined > :only-child { border-radius: 6px; }
-  .joined > * + * { margin-left: -1px; }
-  .joined > :hover, .joined > :focus-visible { position: relative; z-index: 1; }
+  .recent:focus-visible { outline: none; }
 
   /* a button that needs a look, e.g. pictures waiting for their folder */
   .attention { border-color: var(--warn); box-shadow: inset 0 0 0 1px var(--warn); }
@@ -217,7 +225,7 @@
     .save, .aside-btn { flex: none; }
   }
 
-  button, .file-btn {
+  button {
     font: inherit;
     font-size: 13.5px;
     color: var(--ink);
@@ -228,9 +236,7 @@
     cursor: pointer;
     line-height: 1.3;
   }
-  button:hover, .file-btn:hover { border-color: var(--muted); }
-  .file-btn { display: inline-block; }
-  .file-btn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button:hover { border-color: var(--muted); }
   .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
   .seg { display: flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
@@ -480,15 +486,13 @@
         <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.5"/><path d="M6 2.75v10.5"/></svg>
       </button>
     </div>
-    <div class="side-row">
-      <label class="file-btn" for="file-input">Open file
+    <div class="menu">
+      <button type="button" class="menu-item" id="new-btn"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 1.75H4.25a1.5 1.5 0 0 0-1.5 1.5v9.5a1.5 1.5 0 0 0 1.5 1.5h7.5a1.5 1.5 0 0 0 1.5-1.5V6z"/><path d="M9 1.75V6h4.25"/><path d="M8 8.25v4M6 10.25h4"/></svg><span>New</span></button>
+      <label class="menu-item" for="file-input"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 1.75H4.25a1.5 1.5 0 0 0-1.5 1.5v9.5a1.5 1.5 0 0 0 1.5 1.5h7.5a1.5 1.5 0 0 0 1.5-1.5V6z"/><path d="M9 1.75V6h4.25"/><path d="M5.5 9h5M5.5 11.5h3.5"/></svg><span>Open file</span>
         <input class="visually-hidden" type="file" id="file-input" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain">
       </label>
-      <button type="button" id="clear-btn">Clear</button>
-    </div>
-    <div class="joined" role="group" aria-label="Folder">
-      <button type="button" id="folder-btn" hidden>Open folder</button>
-      <select class="recent" id="recent-select" aria-label="Recent folders" hidden></select>
+      <button type="button" class="menu-item" id="folder-btn" hidden><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1.75 4.25a1.5 1.5 0 0 1 1.5-1.5h3l1.5 1.75h5a1.5 1.5 0 0 1 1.5 1.5v6.25a1.5 1.5 0 0 1-1.5 1.5H3.25a1.5 1.5 0 0 1-1.5-1.5z"/></svg><span>Open folder</span></button>
+      <label class="menu-item" id="recent-row" hidden><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.25"/><path d="M8 4.75V8l2.25 1.5"/></svg><select class="recent" id="recent-select" aria-label="Recent folders"></select></label>
     </div>
     <input type="file" id="folder-input" webkitdirectory hidden>
     <div class="seg" role="group" aria-label="View">
@@ -532,7 +536,7 @@
 
 <footer class="status">
   <span id="counts">0 words</span>
-  <span id="notice-wrap"><span id="notice"></span> <button type="button" id="undo-btn" hidden>Undo clear</button></span>
+  <span id="notice-wrap"><span id="notice"></span> <button type="button" id="undo-btn" hidden>Undo</button></span>
 </footer>
 </div>
 </div>
@@ -1291,7 +1295,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   }
 
   function updateRecentUI() {
-    recentSelect.hidden = !recent.length;
+    document.getElementById('recent-row').hidden = !recent.length;
     recentSelect.textContent = '';
     var placeholder = document.createElement('option');
     placeholder.value = '';
@@ -1857,15 +1861,19 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     fileInput.value = '';
   });
 
-  document.getElementById('clear-btn').addEventListener('click', function () {
-    if (state.text === '') return;
-    cleared = { text: state.text, name: state.name, path: state.path, lastFile: lastFile, dirty: state.dirty, mtime: state.mtime };
-    state.path = null;
-    lastFile = null;
-    resetDisk(null);
-    load('', 'Untitled');
-    setNotice('Cleared.', true);
+  /* New: an empty, untitled document. Undo brings back the one before. */
+  document.getElementById('new-btn').addEventListener('click', function () {
+    var blank = state.text === '' && !state.path && !lastFile;
+    if (!blank) {
+      cleared = { text: state.text, name: state.name, path: state.path, lastFile: lastFile, dirty: state.dirty, mtime: state.mtime };
+      state.path = null;
+      lastFile = null;
+      resetDisk(null);
+      load('', 'Untitled');
+      setNotice('New document.', true);
+    }
     if (state.view === 'preview') setView('split');
+    if (phone.matches) setSideOpen(false);
     source.focus();
   });
 

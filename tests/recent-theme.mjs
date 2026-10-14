@@ -25,7 +25,7 @@ await evaluate(`
 const is = async (label, cond) => c.report(label, await evaluate(cond), await evaluate(`typeof __recent === 'function' ? ({ recent: __recent(), folder: __folderName(), notice: document.getElementById('notice').textContent }) : ({ bg: getComputedStyle(document.body).backgroundColor })`));
 
 // ---------- recent folders ----------
-await is('no recent list before any folder', `document.getElementById('recent-select').hidden`);
+await is('no recent list before any folder', `document.getElementById('recent-row').hidden`);
 await evaluate(`__pickDir(__mkDir('alpha', { id: 'A' }))`);
 await evaluate(`__pickDir(__mkDir('beta', { id: 'B' }))`);
 await evaluate(`__pickDir(__mkDir('alpha', { id: 'A' }))`);

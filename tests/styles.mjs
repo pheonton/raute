@@ -15,7 +15,7 @@ await evaluate(`window.confirm = () => true; 1`);
 await type(worksheet); await sleep(300);
 let r = await evaluate(`(() => { const o = document.getElementById('output'); const cs = (sel) => getComputedStyle(o.querySelector(sel));
   return { h1: cs('h1').fontSize, p: cs('p').fontFamily.split(',')[0], td: cs('td').fontSize, hr: cs('hr').borderBottomWidth + ' ' + cs('hr').borderTopWidth,
-    btnFont: getComputedStyle(document.getElementById('clear-btn')).fontFamily.split(',')[0],
+    btnFont: getComputedStyle(document.getElementById('new-btn')).fontFamily.split(',')[0],
     sourceFont: getComputedStyle(document.getElementById('source')).fontFamily.split(',')[0],
     styleShownAsText: o.textContent.includes('@page') }; })()`);
 c.report('worksheet: heading 17pt, its font, small tables, writing lines',
@@ -34,7 +34,7 @@ await type('<style>\nbody { display: none } .bar { display: none } button { colo
   '@font-face { font-family: X; src: url(https://example.com/x.woff2) }\nh1 { color: rgb(0, 128, 0) }\n</style>\n\n# Title\n\ntext');
 await sleep(300);
 r = await evaluate(`(() => ({ body: getComputedStyle(document.body).display, bar: getComputedStyle(document.querySelector('.bar')).display,
-  btn: getComputedStyle(document.getElementById('clear-btn')).color, source: getComputedStyle(document.getElementById('source')).display,
+  btn: getComputedStyle(document.getElementById('new-btn')).color, source: getComputedStyle(document.getElementById('source')).display,
   bg: getComputedStyle(document.querySelector('#output p')).backgroundImage, h1: getComputedStyle(document.querySelector('#output h1')).color,
   sheet: document.adoptedStyleSheets.map((s) => [...s.cssRules].map((x) => x.cssText).join(' ')).join(' ') }))()`);
 c.report('cannot hide or restyle Raute itself', r.body === 'flex' && r.bar === 'flex' && r.btn !== 'rgb(255, 0, 0)' && r.source !== 'none', r);

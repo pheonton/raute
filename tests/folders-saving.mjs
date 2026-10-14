@@ -70,7 +70,7 @@ await evaluate(`__pick('folder-input', __folder); 1`);
 await check('folder without the open file is set aside', { file: 'notes.md', folder: null, aside: 'Show “docs”', notice: 'notes.md is not in “docs”.' });
 await evaluate(`document.getElementById('aside-btn').click(); 1`);
 await check('Show opens the folder at README', { folder: 'docs/', selected: 'README.md', img: true });
-await evaluate(`document.getElementById('clear-btn').click(); __type('# Typed\\n\\n![a](img/a.png)'); 1`);
+await evaluate(`document.getElementById('new-btn').click(); __type('# Typed\\n\\n![a](img/a.png)'); 1`);
 await check('typed text keeps using the folder', { folder: 'docs/', heading: 'Typed', img: true });
 
 // ---------- Open folder starts next to the file ----------
@@ -117,7 +117,7 @@ await is('declined: file untouched, Save offered', `__disk['ro.md'].text === '# 
 await evaluate(`window.confirm = () => false; { const h = __fakeFile('next.md', '# Next\\n'); window.showOpenFilePicker = async () => [h]; document.getElementById('file-input').click(); } 1`);
 await sleep(500);
 await is('opening another file asks, Cancel keeps the edits', `document.getElementById('source').value === '# RO\\n\\nedit'`);
-await evaluate(`window.confirm = () => true; document.getElementById('clear-btn').click(); __type('# New\\n'); 1`);
+await evaluate(`window.confirm = () => true; document.getElementById('new-btn').click(); __type('# New\\n'); 1`);
 await sleep(200);
 await check('new text offers Save as', { save: 'Not saved to a file. [Save as…]', view: 'split' });
 await evaluate(`window.showSaveFilePicker = async (o) => { window.__suggested = o.suggestedName; const h = __fakeFile('new.md', ''); __disk['new.md'].perm = 'granted'; return h; };
@@ -132,6 +132,13 @@ await is('front matter in a closed box', `(() => { const d = document.querySelec
 await evaluate(`__type('# A\\n\\n---\\n\\ntext\\n\\n---\\n'); 1`);
 await sleep(200);
 await is('a later --- is not front matter', `!document.querySelector('#output details.front-matter')`);
+
+// ---------- New ----------
+await evaluate(`__type('# Keep me'); document.getElementById('view-preview').click(); document.getElementById('new-btn').click(); 1`);
+await is('New opens an empty, untitled document in Split', `document.getElementById('source').value === '' && __ui().view === 'split'
+  && document.getElementById('notice').textContent === 'New document.' && !document.getElementById('undo-btn').hidden && document.getElementById('new-btn').textContent.trim() === 'New'`);
+await evaluate(`document.getElementById('undo-btn').click(); 1`);
+await is('Undo brings the previous document back', `document.getElementById('source').value === '# Keep me'`);
 
 // ---------- fresh start ----------
 await send('Page.navigate', { url: base }); await sleep(1200);
