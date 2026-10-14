@@ -194,18 +194,23 @@
   .save:has(#save-note:empty) { display: none; }
   .save button { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; margin-left: 4px; }
 
-  /* note about linked images, right after the file name */
+  /* note about linked images: a line of its own below the bar, only when there is one */
   .asset {
-    flex: 1 1 200px;
-    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    padding: 6px 16px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--surface);
     font-family: var(--font-mono);
     font-size: 12px;
     color: var(--muted);
   }
-  .asset:has(#asset-note:empty) { flex: 0 0 0; } /* takes no room until it has something to say */
+  .asset:has(#asset-note:empty) { display: none; }
   .bar .seg { flex: none; align-self: stretch; margin-left: auto; border-block: 0; } /* fills the line's full height */
   .bar .icon-btn { margin-block: 4px; }
-  .asset button { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; margin-left: 4px; }
+  .asset button { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; }
   /* Recent: a list that opens on hover (or click / keys) beside the sidebar */
   .recent-wrap { position: relative; }
   .recent-wrap .menu-item span { flex: 1; }
@@ -258,7 +263,7 @@
   }
   @media (min-width: 721px) and (max-width: 1200px) {
     .file, .folder { flex: 1 1 160px; }
-    .asset:not(:has(#asset-note:empty)), .save { order: 3; flex-basis: 100%; padding-bottom: 6px; }
+    .save { order: 3; flex-basis: 100%; padding-bottom: 6px; }
   }
 
   button {
@@ -465,9 +470,7 @@
     .md { font-size: 16px; }
     .file, .folder { flex: 1 1 0; }
     .aside-btn { order: 3; max-width: 100%; }
-    .asset { order: 3; flex-basis: 100%; padding-bottom: 6px; }
     .save { order: 3; flex-basis: 100%; padding-bottom: 6px; }
-    .asset:empty, .asset:has(#asset-note:empty) { display: none; }
     .recent-list { position: static; margin: 4px 0 2px 26px; box-shadow: none; max-width: none; }
     .recent-list::before { display: none; }
     /* the sidebar slides in over the page */
@@ -491,7 +494,7 @@
     html, body { height: auto; }
     html { padding: 0; }
     body { display: block; }
-    .side, .bar, .source, .status, .drop, .md .front-matter { display: none !important; }
+    .side, .bar, .asset, .source, .status, .drop, .md .front-matter { display: none !important; }
     .app, .main-col { display: block; }
     main, main[data-view] { display: block; }
     main[data-view="source"] .preview { display: block; }
@@ -562,13 +565,13 @@
   </div>
   <button type="button" class="aside-btn" id="aside-btn" hidden></button>
   <div class="save" id="save-box"><span id="save-note"></span> <button type="button" id="save-btn" hidden>Save</button> <button type="button" id="reload-btn" hidden>Reload</button></div>
-  <div class="asset" id="asset-wrap"><span id="asset-note"></span> <button type="button" id="asset-btn" hidden></button></div>
   <div class="seg" role="group" aria-label="View">
     <button type="button" id="view-source" data-view="source" aria-pressed="false">Source</button>
     <button type="button" id="view-split" data-view="split" aria-pressed="true">Split</button>
     <button type="button" id="view-preview" data-view="preview" aria-pressed="false">Preview</button>
   </div>
 </header>
+<div class="asset" id="asset-wrap"><span id="asset-note"></span> <button type="button" id="asset-btn" hidden></button></div>
 
 <main id="panes" data-view="split">
   <textarea class="source" id="source" spellcheck="false" aria-label="Markdown source" placeholder="Type or paste Markdown here, or drop a .md file anywhere on the page."></textarea>

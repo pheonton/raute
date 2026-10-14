@@ -24,9 +24,10 @@ back the one before. The sidebar is open at every start; its button at the
 top hides it, and the same button above the document brings it back. On a
 phone it slides in over the page.
 
-The line above the document shows the open file and its state (saved or not,
-pictures that are not shown, a folder set aside) and, on the right, the
-**Source / Split / Preview** switch.
+The line above the document shows the open file and its state (saved or
+not, a folder set aside) and, on the right, the **Source / Split / Preview**
+switch. When pictures in the document are not shown, a note in a line of its
+own below says why and offers to open the right folder.
 
 ## Light and dark
 
@@ -79,7 +80,7 @@ the filter. (Ctrl+P stays with the browser, for printing.)
 
 In Chrome and Edge the folder dialog opens in the folder of the file you are
 reading, so usually you only have to confirm it. If the pictures are in a
-folder above (paths starting with `../`), the line above the document says how many levels
+folder above (paths starting with `../`), the note about missing pictures says how many levels
 to go up. If one of your recent folders (see below) holds the file and its
 pictures, the button names that folder and opens it without the dialog.
 
