@@ -32,6 +32,8 @@
     --muted: #5a6677;
     --rule: #d5dbe3;
     --code-bg: #e9edf2;
+    --side: #f3f5f8;      /* sidebar: a shade darker than the document */
+    --side-hi: #e3e8ee;   /* hover and open file in the sidebar */
     --accent: #0d6b68;
     --error: #b3261e;
     --warn: #c2410c;
@@ -48,6 +50,8 @@
       --muted: #95a1b1;
       --rule: #2a323e;
       --code-bg: #212833;
+      --side: #1d232c;    /* a shade lighter than the document */
+      --side-hi: #2a323e;
       --accent: #5fc9c0;
       --error: #ff8f85;
       --warn: #fb923c;
@@ -61,6 +65,8 @@
     --muted: #95a1b1;
     --rule: #2a323e;
     --code-bg: #212833;
+    --side: #1d232c;
+    --side-hi: #2a323e;
     --accent: #5fc9c0;
     --error: #ff8f85;
     --warn: #fb923c;
@@ -93,9 +99,9 @@
     display: flex;
     flex-direction: column;
     border-right: 1px solid var(--rule);
-    background: var(--surface);
+    background: var(--side);
   }
-  .side-top { display: flex; flex-direction: column; gap: 8px; padding: 12px 12px 12px; border-bottom: 1px solid var(--rule); }
+  .side-top { display: flex; flex-direction: column; gap: 8px; padding: 12px 12px 4px; }
   .side-row { display: flex; align-items: center; gap: 8px; }
   .side-row .name { flex: 1; }
   /* New, Open file, Open folder, Recent: one line each, icon and text */
@@ -116,7 +122,7 @@
     text-align: left;
     cursor: pointer;
   }
-  .menu-item:hover { background: var(--code-bg); color: var(--ink); }
+  .menu-item:hover { background: var(--side-hi); color: var(--ink); }
   .menu-item svg { flex: none; color: var(--muted); }
   label.menu-item:focus-within { outline: 2px solid var(--accent); outline-offset: -2px; }
   .side-empty { margin: 14px 16px; color: var(--muted); font-size: 13.5px; }
@@ -131,8 +137,7 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 6px 16px;
-    min-height: 45px;
-    padding: 6px 16px;
+    padding: 4px 16px;
     border-bottom: 1px solid var(--rule);
     background: var(--surface);
   }
@@ -269,7 +274,7 @@
   button:hover { border-color: var(--muted); }
   .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-  .seg { display: flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+  .seg { display: flex; border: 1px solid var(--rule); }
   .seg button { border: 0; border-radius: 0; padding: 6px 11px; color: var(--muted); }
   .seg button + button { border-left: 1px solid var(--rule); }
   .seg button[aria-pressed="true"] { background: var(--code-bg); color: var(--ink); font-weight: 700; }
@@ -284,7 +289,7 @@
     padding: 5px 8px;
     font: inherit;
     color: var(--ink);
-    background: var(--bg);
+    background: var(--surface);
     border: 1px solid var(--rule);
     border-radius: 6px;
   }
@@ -304,7 +309,7 @@
   .tree-list summary::-webkit-details-marker { display: none; }
   .tree-list summary::before { content: "▸"; display: inline-block; width: 1em; }
   .tree-list details[open] > summary::before { content: "▾"; }
-  .tree-list summary:hover { color: var(--ink); background: var(--code-bg); }
+  .tree-list summary:hover { color: var(--ink); background: var(--side-hi); }
   .tree-file {
     display: block;
     width: 100%;
@@ -320,8 +325,8 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .tree-file:hover { background: var(--code-bg); color: var(--ink); }
-  .tree-file[aria-current="true"] { background: var(--code-bg); color: var(--accent); } /* the open file */
+  .tree-file:hover { background: var(--side-hi); color: var(--ink); }
+  .tree-file[aria-current="true"] { background: var(--side-hi); color: var(--accent); } /* the open file */
   .tree-file.pick { box-shadow: inset 0 0 0 1.5px var(--accent); }
   .tree-empty { margin: 4px 8px; color: var(--muted); }
 
