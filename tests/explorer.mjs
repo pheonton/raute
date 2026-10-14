@@ -1,11 +1,10 @@
-// The file tree on the left: folders and Markdown files, filtering and Ctrl+K.
+// The sidebar: menu on top, the file tree below with filtering and Ctrl+K.
 import { base, connect, sleep, counter } from './cdp.mjs';
 const { ws, send, evaluate } = await connect();
 const c = counter();
 
 await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
 await send('Page.navigate', { url: base }); await sleep(1200);
-await evaluate(`localStorage.removeItem('raute-tree'); location.reload(); 1`); await sleep(1200);
 
 const helpers = `
   window.confirm = () => true;
@@ -45,6 +44,10 @@ const helpers = `
 await evaluate(helpers);
 const is = async (label, cond) => { await sleep(250); c.report(label, await evaluate(cond), await evaluate('__tree()')); };
 
+// At start the sidebar is open, with a hint instead of files.
+await is('the sidebar is open at start, with a hint and no tree yet',
+  `!document.getElementById('side').hidden && document.getElementById('tree-btn').hidden && !__tree().shown && document.getElementById('side-empty').checkVisibility()`);
+
 // Opening a folder shows the tree.
 await evaluate(`__openFolder(); 1`);
 await is('the tree shows the folder with its Markdown files',
@@ -75,27 +78,25 @@ await evaluate(`__filter('zzz'); 1`);
 await is('no match says so', `document.querySelector('#tree .tree-empty').textContent === 'No file matches.'`);
 await evaluate(`__filter(''); 1`);
 
-// Keyboard: Ctrl+K searches, Ctrl+P still prints.
-await evaluate(`document.getElementById('tree-btn').click(); 1`);
-await is('the tree button hides the tree and remembers it', `!__tree().shown && localStorage.getItem('raute-tree') === 'hidden'`);
-await is('Ctrl+K shows the tree and focuses the filter', `__key('k', { ctrlKey: true, target: document.body }) && __tree().shown && document.activeElement === document.getElementById('tree-filter')`);
+// Hiding the sidebar; Ctrl+K searches, Ctrl+P still prints.
+await evaluate(`document.getElementById('side-hide').click(); 1`);
+await is('the hide button hides the sidebar; a button above the document brings it back',
+  `!__tree().shown && document.getElementById('side').hidden && !document.getElementById('tree-btn').hidden && !document.getElementById('folder-box').hidden`);
+await is('Ctrl+K shows the sidebar and focuses the filter', `__key('k', { ctrlKey: true, target: document.body }) && __tree().shown && document.activeElement === document.getElementById('tree-filter')`);
 await is('Ctrl+P is left to the browser (printing)', `!__key('p', { ctrlKey: true, target: document.body })`);
 
-// Phone: the tree slides in and gets out of the way.
+// Phone: the sidebar slides in and gets out of the way.
 await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 800, deviceScaleFactor: 1, mobile: true });
 await evaluate(`__openFolder(); 1`);
-await is('on a phone the tree starts hidden', `!__tree().shown && !document.getElementById('folder-box').hidden`);
+await is('on a phone the sidebar starts hidden', `document.getElementById('side').hidden && !document.getElementById('folder-box').hidden`);
 await evaluate(`document.getElementById('tree-btn').click(); 1`);
-await is('the button slides it in over the page', `__tree().shown && getComputedStyle(document.getElementById('tree')).position === 'fixed'`);
+await is('the button slides it in over the page', `__tree().shown && getComputedStyle(document.getElementById('side')).position === 'fixed'`);
 await evaluate(`document.querySelector('#tree summary[title="Mathe"]').click(); 1`);
 await evaluate(`document.querySelector('.tree-file[data-path="Mathe/Bruch.md"]').click(); 1`);
 await is('opening a file closes it again', `!__tree().shown && __tree().heading === 'Bruch'`);
 await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
 
-// × hides the tree; the folder stays open.
-await evaluate(`if (document.getElementById('tree').hidden) document.getElementById('tree-btn').click(); 1`);
-await is('the tree is shown again', `__tree().shown`);
-await evaluate(`document.getElementById('tree-close').click(); 1`);
-await is('× hides the tree, the folder stays open', `!__tree().shown && !document.getElementById('folder-box').hidden && localStorage.getItem('raute-tree') === 'hidden'`);
+// Back on a computer screen the sidebar is there again.
+await is('on a wide screen the sidebar shows again', `__tree().shown && document.getElementById('tree-btn').hidden`);
 
 c.finish(ws);

@@ -84,13 +84,37 @@
   }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-  /* ---------- top bar ---------- */
+  /* ---------- sidebar: menu on top, files below ---------- */
+  .app { flex: 1; min-height: 0; display: flex; }
+  .side {
+    flex: none;
+    width: 272px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--rule);
+    background: var(--surface);
+  }
+  .side-top { display: flex; flex-direction: column; gap: 8px; padding: 12px 12px 12px; border-bottom: 1px solid var(--rule); }
+  .side-row { display: flex; align-items: center; gap: 8px; }
+  .side-row .name { flex: 1; }
+  .side-row > .file-btn, .side-row > #clear-btn { flex: 1; text-align: center; }
+  .side .joined > button { flex: 1; }
+  .side .seg button { flex: 1; }
+  .side-empty { margin: 14px 16px; color: var(--muted); font-size: 13.5px; }
+  .icon-btn { display: inline-flex; align-items: center; justify-content: center; padding: 6px 8px; color: var(--muted); }
+  .icon-btn:hover { color: var(--ink); }
+  .icon-btn svg { display: block; margin-block: 0.75px; }
+  .main-col { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+
+  /* ---------- bar above the document: the open file and its state ---------- */
   .bar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 10px 16px;
-    padding: 10px 16px;
+    gap: 6px 16px;
+    min-height: 45px;
+    padding: 6px 16px;
     border-bottom: 1px solid var(--rule);
     background: var(--surface);
   }
@@ -125,8 +149,6 @@
   }
   .folder-name { flex: none; max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .folder-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
-  .tree-btn { display: inline-flex; padding: 4px 6px; color: var(--muted); }
-  .tree-btn[aria-expanded="true"] { color: var(--ink); background: var(--code-bg); }
   .aside-btn {
     flex: 0 1 auto;
     min-width: 0;
@@ -189,20 +211,11 @@
   .recent option { color: var(--ink); background: var(--surface); }
   .theme-btn { display: inline-flex; align-items: center; justify-content: center; padding: 6px 8px; }
   .theme-btn svg { display: block; margin-block: 0.75px; }
-  /* Above phone width the buttons stay on the first line and a long path is cut
-     off with … instead of pushing them down. On a wide screen notes fit in the
-     same line; on a medium one they get a line of their own. */
+  /* above phone width: one line, a long path is cut off with … and notes wrap in their own space */
   @media (min-width: 721px) {
-    .name, .controls { flex: none; }
-  }
-  @media (min-width: 1101px) {
     .bar { flex-wrap: nowrap; }
+    .save, .aside-btn { flex: none; }
   }
-  @media (min-width: 721px) and (max-width: 1100px) {
-    .file, .folder { flex: 1 1 160px; }
-    .asset:not(:has(#asset-note:empty)), .save { order: 3; flex-basis: 100%; }
-  }
-  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
   button, .file-btn {
     font: inherit;
@@ -227,21 +240,9 @@
   .seg button:focus-visible { outline-offset: -2px; }
 
   /* ---------- file tree ---------- */
-  .work { flex: 1; min-height: 0; display: flex; }
-  .tree {
-    flex: none;
-    width: 260px;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    border-right: 1px solid var(--rule);
-    background: var(--surface);
-    font-size: 13.5px;
-  }
-  .tree-head { display: flex; align-items: center; gap: 8px; padding: 8px 8px 0 12px; font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); }
+  .tree { flex: 1; min-height: 0; display: flex; flex-direction: column; font-size: 13.5px; }
+  .tree-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px 0; font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); }
   .tree-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-weight: 700; }
-  .tree-close { border: 0; padding: 0 6px; font-size: 18px; line-height: 1.2; color: var(--muted); }
-  .tree-close:hover { color: var(--ink); }
   .tree-filter {
     margin: 8px 8px 6px;
     padding: 5px 8px;
@@ -417,13 +418,13 @@
     main[data-view="source"] .source { border-bottom: 0; }
     .preview { padding: 20px 16px 40px; }
     .md { font-size: 16px; }
-    .file, .folder { flex-basis: 100%; order: 3; }
+    .file, .folder { flex: 1 1 0; }
     .aside-btn { order: 3; max-width: 100%; }
     .asset { order: 3; flex-basis: 100%; }
     .save { order: 3; flex-basis: 100%; }
     .asset:empty, .asset:has(#asset-note:empty) { display: none; }
-    /* the tree slides in over the page */
-    .tree { position: fixed; z-index: 20; left: 0; top: 0; bottom: 0; width: min(85vw, 320px); box-shadow: 0 0 24px rgb(0 0 0 / 0.3); }
+    /* the sidebar slides in over the page */
+    .side { position: fixed; z-index: 20; left: 0; top: 0; bottom: 0; width: min(85vw, 320px); box-shadow: 0 0 24px rgb(0 0 0 / 0.3); }
   }
 
   /* ---------- printing: only the rendered document, on white ---------- */
@@ -443,8 +444,8 @@
     html, body { height: auto; }
     html { padding: 0; }
     body { display: block; }
-    .bar, .source, .status, .drop, .tree, .md .front-matter { display: none !important; }
-    .work { display: block; }
+    .side, .bar, .source, .status, .drop, .md .front-matter { display: none !important; }
+    .app, .main-col { display: block; }
     main, main[data-view] { display: block; }
     main[data-view="source"] .preview { display: block; }
     .preview { overflow: visible; padding: 0; }
@@ -469,47 +470,58 @@
 </head>
 <body>
 
-<header class="bar">
-  <h1 class="name"><span aria-hidden="true">#</span>Raute</h1>
-  <div class="file" id="file-name" title="">sample.md (example)</div>
-  <div class="folder" id="folder-box" hidden>
-    <button type="button" class="tree-btn" id="tree-btn" aria-controls="tree" aria-expanded="true" title="Show or hide the files (Ctrl+K to search)">
-      <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.5"/><path d="M6 2.75v10.5"/></svg>
-    </button>
-    <span class="folder-name" id="folder-name"></span><span class="folder-path" id="folder-path"></span>
-  </div>
-  <button type="button" class="aside-btn" id="aside-btn" hidden></button>
-  <div class="save" id="save-box"><span id="save-note"></span> <button type="button" id="save-btn" hidden>Save</button> <button type="button" id="reload-btn" hidden>Reload</button></div>
-  <div class="asset" id="asset-wrap"><span id="asset-note"></span> <button type="button" id="asset-btn" hidden></button></div>
-  <div class="controls">
-    <label class="file-btn" for="file-input">Open file
-      <input class="visually-hidden" type="file" id="file-input" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain">
-    </label>
+<div class="app">
+<aside class="side" id="side" aria-label="Menu and files">
+  <div class="side-top">
+    <div class="side-row">
+      <h1 class="name"><span aria-hidden="true">#</span>Raute</h1>
+      <button type="button" class="theme-btn" id="theme-btn"></button>
+      <button type="button" class="icon-btn" id="side-hide" title="Hide the sidebar" aria-label="Hide the sidebar">
+        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.5"/><path d="M6 2.75v10.5"/></svg>
+      </button>
+    </div>
+    <div class="side-row">
+      <label class="file-btn" for="file-input">Open file
+        <input class="visually-hidden" type="file" id="file-input" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain">
+      </label>
+      <button type="button" id="clear-btn">Clear</button>
+    </div>
     <div class="joined" role="group" aria-label="Folder">
       <button type="button" id="folder-btn" hidden>Open folder</button>
       <select class="recent" id="recent-select" aria-label="Recent folders" hidden></select>
     </div>
     <input type="file" id="folder-input" webkitdirectory hidden>
-    <button type="button" id="clear-btn">Clear</button>
     <div class="seg" role="group" aria-label="View">
       <button type="button" id="view-source" data-view="source" aria-pressed="false">Source</button>
       <button type="button" id="view-split" data-view="split" aria-pressed="true">Split</button>
       <button type="button" id="view-preview" data-view="preview" aria-pressed="false">Preview</button>
     </div>
-    <button type="button" class="theme-btn" id="theme-btn"></button>
   </div>
+  <nav class="tree" id="tree" aria-label="Files in the open folder" hidden>
+    <div class="tree-head">
+      <span class="tree-name" id="tree-name"></span>
+      <span class="tree-count" id="tree-count"></span>
+    </div>
+    <input type="search" class="tree-filter" id="tree-filter" placeholder="Filter files (Ctrl+K)" aria-label="Filter files" autocomplete="off" spellcheck="false">
+    <div class="tree-list" id="tree-list"></div>
+  </nav>
+  <p class="side-empty" id="side-empty">Open a folder to see its files here.</p>
+</aside>
+
+<div class="main-col">
+<header class="bar">
+  <button type="button" class="icon-btn" id="tree-btn" aria-controls="side" aria-expanded="true" title="Show the sidebar (Ctrl+K searches the files)" aria-label="Show the sidebar" hidden>
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.5"/><path d="M6 2.75v10.5"/></svg>
+  </button>
+  <div class="file" id="file-name" title="">sample.md (example)</div>
+  <div class="folder" id="folder-box" hidden>
+    <span class="folder-name" id="folder-name"></span><span class="folder-path" id="folder-path"></span>
+  </div>
+  <button type="button" class="aside-btn" id="aside-btn" hidden></button>
+  <div class="save" id="save-box"><span id="save-note"></span> <button type="button" id="save-btn" hidden>Save</button> <button type="button" id="reload-btn" hidden>Reload</button></div>
+  <div class="asset" id="asset-wrap"><span id="asset-note"></span> <button type="button" id="asset-btn" hidden></button></div>
 </header>
 
-<div class="work">
-<nav class="tree" id="tree" aria-label="Files in the open folder" hidden>
-  <div class="tree-head">
-    <span class="tree-name" id="tree-name"></span>
-    <span class="tree-count" id="tree-count"></span>
-    <button type="button" class="tree-close" id="tree-close" title="Hide the files" aria-label="Hide the files">×</button>
-  </div>
-  <input type="search" class="tree-filter" id="tree-filter" placeholder="Filter files (Ctrl+K)" aria-label="Filter files" autocomplete="off" spellcheck="false">
-  <div class="tree-list" id="tree-list"></div>
-</nav>
 <main id="panes" data-view="split">
   <textarea class="source" id="source" spellcheck="false" aria-label="Markdown source" placeholder="Type or paste Markdown here, or drop a .md file anywhere on the page."></textarea>
   <section class="preview" id="preview" aria-label="Rendered preview" aria-live="off">
@@ -517,12 +529,13 @@
     <article class="md" id="output"></article>
   </section>
 </main>
-</div>
 
 <footer class="status">
   <span id="counts">0 words</span>
   <span id="notice-wrap"><span id="notice"></span> <button type="button" id="undo-btn" hidden>Undo clear</button></span>
 </footer>
+</div>
+</div>
 
 <div class="drop" id="drop" hidden>Drop a file or folder to open it</div>
 
@@ -914,9 +927,8 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   var treePath;              // the open file it last marked
   var expanded = new Set();  // folders opened by hand
   var pick = null;           // the file Enter opens
-  var treeOpen = false;
-  var treeWanted = true;     // on a computer the tree shows unless hidden by hand
-  try { treeWanted = localStorage.getItem('raute-tree') !== 'hidden'; } catch (e) { /* storage unavailable */ }
+  var side = document.getElementById('side');
+  var sideOpen = false;
 
   function fold(text) { return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
   function byName(a, b) { return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }); }
@@ -1003,22 +1015,30 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     });
   }
 
-  function setTreeOpen(open) {
-    treeOpen = open;
-    tree.hidden = !(folder && treeOpen);
-    treeBtn.setAttribute('aria-expanded', String(!tree.hidden));
+  /* The sidebar (menu and files) is open at every start on a computer; on a
+     phone it slides in over the page when asked for. */
+  function setSideOpen(open) {
+    sideOpen = open;
+    side.hidden = !open;
+    treeBtn.hidden = open;
+    treeBtn.setAttribute('aria-expanded', String(open));
   }
 
   /* Follows the open folder and file. */
   function updateTree() {
-    if (!folder) { treeFor = null; treePath = undefined; setTreeOpen(false); return; }
+    tree.hidden = !folder;
+    var hint = document.getElementById('side-empty');
+    hint.hidden = !!folder;
+    hint.textContent = aside
+      ? 'The open file is not in “' + aside.folder.name + '”. The button above the document goes back to it.'
+      : 'Open a folder to see its files here.';
+    if (!folder) { treeFor = null; treePath = undefined; return; }
     if (treeFor !== folder) {
       /* a rebuilt copy of the same folder (after "Save as") keeps its state */
       var same = treeFor && folder.handle && treeFor.handle === folder.handle;
       if (!same) {
         expanded = new Set();
         treeFilter.value = '';
-        setTreeOpen(!phone.matches && treeWanted);
       }
       treeFor = folder;
       treePath = undefined;
@@ -1032,12 +1052,12 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     }
     renderTree();
     var current = treeList.querySelector('[aria-current="true"]');
-    if (current && !tree.hidden) current.scrollIntoView({ block: 'nearest' });
+    if (current && sideOpen) current.scrollIntoView({ block: 'nearest' });
   }
 
   function openFromTree(path) {
     treeFilter.value = '';
-    if (phone.matches) setTreeOpen(false);
+    if (phone.matches) setSideOpen(false);
     renderTree();
     if (path !== state.path) openFromFolder(path);
   }
@@ -1065,32 +1085,26 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       if (target) openFromTree(target);
     } else if (e.key === 'Escape') {
       if (treeFilter.value) { treeFilter.value = ''; renderTree(); }
-      else if (phone.matches) setTreeOpen(false);
+      else if (phone.matches) setSideOpen(false);
       else treeFilter.blur();
     }
   });
-  /* The button in the top bar shows and hides the tree, × hides it. */
-  function showTree(open) {
-    setTreeOpen(open);
-    if (!phone.matches) {
-      treeWanted = open;
-      try { localStorage.setItem('raute-tree', open ? 'shown' : 'hidden'); } catch (e) { /* storage unavailable */ }
-    }
-  }
-  treeBtn.addEventListener('click', function () { showTree(!treeOpen); });
-  document.getElementById('tree-close').addEventListener('click', function () { showTree(false); treeBtn.focus(); });
+  treeBtn.addEventListener('click', function () { setSideOpen(true); });
+  document.getElementById('side-hide').addEventListener('click', function () { setSideOpen(false); treeBtn.focus(); });
   window.addEventListener('keydown', function (e) {
     if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k' && folder) {
       e.preventDefault();
-      setTreeOpen(true);
+      setSideOpen(true);
       treeFilter.focus();
       treeFilter.select();
     }
   });
-  /* on a phone the tree covers the page: a tap outside it closes it */
+  /* on a phone the sidebar covers the page: a tap outside it closes it */
   document.addEventListener('click', function (e) {
-    if (phone.matches && treeOpen && !tree.contains(e.target) && !treeBtn.contains(e.target)) setTreeOpen(false);
+    if (phone.matches && sideOpen && !side.contains(e.target) && !treeBtn.contains(e.target)) setSideOpen(false);
   });
+  setSideOpen(!phone.matches);
+  phone.addEventListener('change', function () { setSideOpen(!phone.matches); });
 
   function makeFolder(name, entries, handle, capped) {
     var lower = new Map(), md = [];
@@ -1914,7 +1928,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
      list and the theme are kept). Older versions saved the open text and
      folder; remove those leftovers. */
   function start() {
-    try { localStorage.removeItem('raute-draft'); } catch (e) { /* storage unavailable */ }
+    try { localStorage.removeItem('raute-draft'); localStorage.removeItem('raute-tree'); } catch (e) { /* storage unavailable */ }
     try { if (window.indexedDB) indexedDB.deleteDatabase('raute'); } catch (e) { /* storage unavailable */ }
     source.value = state.text;
     setName(state.name);

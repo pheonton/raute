@@ -15,9 +15,18 @@ works at the root of a domain or in a subfolder.
 Open `index.html` directly from disk. Everything works except installing the
 app and the offline cache, which need a web address.
 
+## Layout
+
+On the left, a sidebar holds the buttons (open a file or folder, clear, the
+Source / Split / Preview view and the theme) and, below them, the files of the
+open folder. It is open at every start; its button at the top hides it, and
+the same button above the document brings it back. On a phone it slides in
+over the page. The line above the document shows the open file and its state:
+saved or not, pictures that are not shown, a folder set aside.
+
 ## Light and dark
 
-The theme button in the top bar switches between **Auto** (follows the
+The theme button in the sidebar switches between **Auto** (follows the
 system), **Light** and **Dark**. The choice is remembered.
 
 ## Editing and saving
@@ -25,7 +34,7 @@ system), **Light** and **Dark**. The choice is remembered.
 Files open in Preview. Switching to Split or Source means you want to edit:
 in Chrome and Edge the browser then asks once whether Raute may save changes
 to that file, and from then on every change is saved to the file a moment
-after you stop typing. The top bar shows whether changes are saved.
+after you stop typing. The line above the document shows whether changes are saved.
 
 - Ctrl+S (Cmd+S on a Mac) saves right away. Text that is not a file yet
   (typed or pasted) is saved with a "Save as" dialog, and saves itself from
@@ -60,18 +69,16 @@ The filter box above the tree narrows it down: every word you type must
 appear somewhere in the path, ignoring case and accents, so `10 ener` finds
 `Physik/10/Energie/energie-aufgaben.md`. **Ctrl+K** jumps to the filter box,
 ↑ and ↓ move through the matches, Enter opens the marked one and Esc clears
-the filter. (Ctrl+P stays with the browser, for printing.) The button next
-to the folder name hides or shows the tree, and × in the tree hides it. On a phone
-the tree slides in over the page.
+the filter. (Ctrl+P stays with the browser, for printing.)
 
 In Chrome and Edge the folder dialog opens in the folder of the file you are
 reading, so usually you only have to confirm it. If the pictures are in a
-folder above (paths starting with `../`), the top bar says how many levels
+folder above (paths starting with `../`), the line above the document says how many levels
 to go up. If one of your recent folders (see below) holds the file and its
 pictures, the button names that folder and opens it without the dialog.
 
 If you then open a file that is not in that folder, the folder is set aside:
-the top bar shows only that file, and a **Back to** button returns to the
+the sidebar no longer lists it, and a **Back to** button above the document returns to the
 folder.
 
 Raute starts fresh every time: when you close it, it forgets the open file,
