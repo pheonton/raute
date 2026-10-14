@@ -357,7 +357,9 @@
   .source::placeholder { color: var(--muted); }
   main[data-view="source"] .source { border-right: 0; }
 
-  .preview { min-height: 0; overflow-y: auto; background: var(--surface); padding: 24px 16px 48px; }
+  /* position: relative keeps absolutely placed parts (like KaTeX's hidden copy of each
+     formula for screen readers) inside the scrolling preview instead of the page */
+  .preview { position: relative; min-height: 0; overflow-y: auto; background: var(--surface); padding: 24px 16px 48px; }
   .md { max-width: 68ch; margin-inline: auto; font-size: 16.5px; line-height: 1.62; overflow-wrap: break-word; }
   .empty { max-width: 68ch; margin: 0 auto; color: var(--muted); }
 

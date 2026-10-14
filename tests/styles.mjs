@@ -78,4 +78,15 @@ r = await printed();
 c.report('print: a file\'s own <style> still wins', r.h1 === 17 && r.p === 10, r);
 await send('Emulation.setEmulatedMedia', { media: '' });
 
+// 7. A formula far down a long document must not make the page itself scroll.
+await send('Emulation.setDeviceMetricsOverride', { width: 1366, height: 700, deviceScaleFactor: 1, mobile: false });
+await type('# Long\n\n' + 'Text.\n\n'.repeat(120) + '$$\nT = 2\\pi\\sqrt{\\frac{m}{D}}\n$$\n');
+await sleep(300);
+for (const view of ['preview', 'split']) {
+  await evaluate(`document.getElementById('view-${view}').click(); 1`);
+  await sleep(150);
+  r = await evaluate(`({ page: document.scrollingElement.scrollHeight, window: innerHeight })`);
+  c.report(`no second scroll bar with a formula at the end (${view})`, r.page === r.window, r);
+}
+
 c.finish(ws);
