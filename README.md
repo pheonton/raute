@@ -89,8 +89,9 @@ Raute starts fresh every time: when you close it, it forgets the open file,
 the folder and any changes that were not saved (it warns you first if there
 are unsaved changes).
 
-In Chrome and Edge, **Recent** next to **Open folder** lists the last 10
-folders you opened. Raute keeps only the browser's reference to them, not
+In Chrome and Edge, **Recent** under **Open folder** lists the last 10
+folders you opened; the list opens when the mouse moves over it (or on a
+click, a tap, or ↓). Raute keeps only the browser's reference to them, not
 their contents. The first time you reopen one, the browser asks for access
 and offers **Allow on every visit**; after that, recent folders open with one
 click. When you open a file with pictures or links to neighbouring files and

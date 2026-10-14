@@ -200,18 +200,39 @@
   .asset:has(#asset-note:empty) { flex-basis: 0; } /* takes no room until it has something to say */
   .bar .seg { flex: none; margin-left: auto; }
   .asset button { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; margin-left: 4px; }
-  .recent {
-    flex: 1;
-    min-width: 0;
-    margin: -2px 0 -2px -4px; /* the browser indents a dropdown's text a little; line it up with the others */
-    padding: 0;
-    font: inherit;
-    color: inherit;
-    background: transparent;
-    border: 0;
-    cursor: pointer;
+  /* Recent: a list that opens on hover (or click / keys) beside the sidebar */
+  .recent-wrap { position: relative; }
+  .recent-wrap .menu-item span { flex: 1; }
+  .recent-wrap .chevron { color: var(--muted); }
+  .recent-list {
+    position: absolute;
+    z-index: 30;
+    top: -6px;
+    left: calc(100% + 6px);
+    min-width: 200px;
+    max-width: 320px;
+    padding: 6px;
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    background: var(--surface);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
   }
-  .recent:focus-visible { outline: none; }
+  .recent-list::before { content: ""; position: absolute; top: 0; bottom: 0; left: -10px; width: 10px; } /* keeps the hover on the way over */
+  .recent-item {
+    display: block;
+    width: 100%;
+    padding: 7px 12px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    font: inherit;
+    font-size: 14px;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .recent-item:hover, .recent-item:focus-visible { background: var(--code-bg); outline: none; }
 
   /* a button that needs a look, e.g. pictures waiting for their folder */
   .attention { border-color: var(--warn); box-shadow: inset 0 0 0 1px var(--warn); }
@@ -437,6 +458,8 @@
     .asset { order: 3; flex-basis: 100%; }
     .save { order: 3; flex-basis: 100%; }
     .asset:empty, .asset:has(#asset-note:empty) { display: none; }
+    .recent-list { position: static; margin: 4px 0 2px 26px; box-shadow: none; max-width: none; }
+    .recent-list::before { display: none; }
     /* the sidebar slides in over the page */
     .side { position: fixed; z-index: 20; left: 0; top: 0; bottom: 0; width: min(85vw, 320px); box-shadow: 0 0 24px rgb(0 0 0 / 0.3); }
   }
@@ -500,7 +523,10 @@
         <input class="visually-hidden" type="file" id="file-input" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain">
       </label>
       <button type="button" class="menu-item" id="folder-btn" hidden><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1.75 4.25a1.5 1.5 0 0 1 1.5-1.5h3l1.5 1.75h5a1.5 1.5 0 0 1 1.5 1.5v6.25a1.5 1.5 0 0 1-1.5 1.5H3.25a1.5 1.5 0 0 1-1.5-1.5z"/></svg><span>Open folder</span></button>
-      <label class="menu-item" id="recent-row" hidden><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.25"/><path d="M8 4.75V8l2.25 1.5"/></svg><select class="recent" id="recent-select" aria-label="Recent folders"></select></label>
+      <div class="recent-wrap" id="recent-row" hidden>
+        <button type="button" class="menu-item" id="recent-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="recent-list"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.25"/><path d="M8 4.75V8l2.25 1.5"/></svg><span>Recent</span><svg class="chevron" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5 10.5 8 6 12.5"/></svg></button>
+        <div class="recent-list" id="recent-list" role="menu" aria-label="Recent folders" hidden></div>
+      </div>
     </div>
     <input type="file" id="folder-input" webkitdirectory hidden>
   </div>
@@ -1282,7 +1308,10 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
      "Allow on every visit", after which it opens without asking. */
   var MAX_RECENT = 10;
   var recent = [];
-  var recentSelect = document.getElementById('recent-select');
+  var recentRow = document.getElementById('recent-row');
+  var recentBtn = document.getElementById('recent-btn');
+  var recentList = document.getElementById('recent-list');
+  var recentTimer = 0;
 
   function recentStore(list) {
     return new Promise(function (resolve, reject) {
@@ -1303,23 +1332,29 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   }
 
   function updateRecentUI() {
-    document.getElementById('recent-row').hidden = !recent.length;
-    recentSelect.textContent = '';
-    var placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = 'Recent';
-    placeholder.hidden = true;
-    recentSelect.appendChild(placeholder);
+    recentRow.hidden = !recent.length;
+    recentList.textContent = '';
     var seen = {};
     recent.forEach(function (handle, i) {
-      var option = document.createElement('option');
+      var item = document.createElement('button');
       seen[handle.name] = (seen[handle.name] || 0) + 1;
-      option.value = String(i);
-      option.textContent = handle.name + (seen[handle.name] > 1 ? ' (' + seen[handle.name] + ')' : '');
-      recentSelect.appendChild(option);
+      item.type = 'button';
+      item.className = 'recent-item';
+      item.setAttribute('role', 'menuitem');
+      item.dataset.index = String(i);
+      item.textContent = handle.name + (seen[handle.name] > 1 ? ' (' + seen[handle.name] + ')' : '');
+      item.title = 'Open “' + handle.name + '”';
+      recentList.appendChild(item);
     });
-    recentSelect.value = '';
+    if (!recent.length) showRecent(false);
   }
+
+  function showRecent(open) {
+    clearTimeout(recentTimer);
+    recentList.hidden = !open;
+    recentBtn.setAttribute('aria-expanded', String(open));
+  }
+  function recentItems() { return Array.from(recentList.querySelectorAll('.recent-item')); }
 
   async function addRecent(handle) {
     var keep = [];
@@ -1350,10 +1385,47 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     }
   }
 
-  recentSelect.addEventListener('change', function () {
-    var handle = recent[Number(recentSelect.value)];
-    recentSelect.value = '';
+  /* Opens when a mouse moves over it (a finger tap is not hovering); a click,
+     a tap and the keyboard work too. */
+  recentRow.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') showRecent(true); });
+  recentRow.addEventListener('pointerleave', function (e) {
+    if (e.pointerType !== 'mouse') return;
+    recentTimer = setTimeout(function () { showRecent(false); }, 300);
+  });
+  recentBtn.addEventListener('click', function (e) {
+    showRecent(e.pointerType === 'mouse' ? true : recentList.hidden);
+  });
+  recentBtn.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      showRecent(true);
+      if (recentItems()[0]) recentItems()[0].focus();
+    } else if (e.key === 'Escape') showRecent(false);
+  });
+  recentList.addEventListener('keydown', function (e) {
+    var items = recentItems(), at = items.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      at = e.key === 'ArrowDown' ? Math.min(items.length - 1, at + 1) : Math.max(0, at - 1);
+      items[at].focus();
+    } else if (e.key === 'Escape' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      showRecent(false);
+      recentBtn.focus();
+    }
+  });
+  recentList.addEventListener('click', function (e) {
+    var item = e.target.closest('.recent-item');
+    if (!item) return;
+    showRecent(false);
+    var handle = recent[Number(item.dataset.index)];
     if (handle) openRecent(handle);
+  });
+  recentRow.addEventListener('focusout', function (e) {
+    if (!recentRow.contains(e.relatedTarget)) showRecent(false);
+  });
+  document.addEventListener('click', function (e) {
+    if (!recentList.hidden && !recentRow.contains(e.target)) showRecent(false);
   });
 
   if (typeof window.showDirectoryPicker === 'function') {

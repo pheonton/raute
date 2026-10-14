@@ -18,8 +18,8 @@ await evaluate(`
     return d;
   };
   window.__pickDir = async (d) => { window.showDirectoryPicker = async () => d; document.getElementById('folder-btn').click(); await new Promise((r) => setTimeout(r, 250)); };
-  window.__recent = () => [...document.querySelectorAll('#recent-select option')].filter((o) => o.value !== '').map((o) => o.textContent);
-  window.__openRecent = (name) => { const s = document.getElementById('recent-select'); s.value = String(__recent().indexOf(name)); s.dispatchEvent(new Event('change')); };
+  window.__recent = () => [...document.querySelectorAll('#recent-list .recent-item')].map((b) => b.textContent);
+  window.__openRecent = (name) => { document.getElementById('recent-btn').click(); [...document.querySelectorAll('#recent-list .recent-item')].find((b) => b.textContent === name).click(); };
   window.__folderName = () => document.getElementById('folder-box').hidden ? null : document.getElementById('folder-name').textContent;
   1`);
 const is = async (label, cond) => c.report(label, await evaluate(cond), await evaluate(`typeof __recent === 'function' ? ({ recent: __recent(), folder: __folderName(), notice: document.getElementById('notice').textContent }) : ({ bg: getComputedStyle(document.body).backgroundColor })`));
@@ -34,6 +34,23 @@ await evaluate(`(async () => { for (let i = 1; i <= 11; i++) await __pickDir(__m
 await is('list keeps the last 10', `__recent().length === 10 && __recent()[0] === 'f11'`);
 await evaluate(`(async () => { await __pickDir(__mkDir('docs')); await __pickDir(__mkDir('docs')); })()`);
 await is('same names are told apart', `__recent()[0] === 'docs' && __recent()[1] === 'docs (2)'`);
+
+// The list opens on hover, closes after leaving, and works with the keyboard.
+const list = `document.getElementById('recent-list')`;
+await is('the list is closed at first', `${list}.hidden`);
+await evaluate(`document.getElementById('recent-row').dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' })); 1`);
+await is('hovering opens it beside the sidebar', `!${list}.hidden && getComputedStyle(${list}).position === 'absolute' && getComputedStyle(${list}).borderRadius === '10px'`);
+await evaluate(`document.getElementById('recent-row').dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'mouse' })); 1`);
+await sleep(450);
+await is('leaving closes it after a moment', `${list}.hidden`);
+await evaluate(`document.getElementById('recent-btn').focus(); document.getElementById('recent-btn').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })); 1`);
+await is('↓ opens it and focuses the first folder', `!${list}.hidden && document.activeElement === ${list}.querySelector('.recent-item')`);
+await evaluate(`${list}.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })); 1`);
+await is('↓ moves to the next folder', `document.activeElement === ${list}.querySelectorAll('.recent-item')[1]`);
+await evaluate(`${list}.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 1`);
+await is('Esc closes it and returns to Recent', `${list}.hidden && document.activeElement === document.getElementById('recent-btn')`);
+await evaluate(`document.getElementById('recent-row').dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'touch' })); 1`);
+await is('a finger is not hovering', `${list}.hidden`);
 await evaluate(`(async () => { window.__g = __mkDir('gamma', { id: 'G' }); await __pickDir(__g); await __pickDir(__mkDir('delta')); __g.perm = 'prompt'; __openRecent('gamma'); })()`);
 await sleep(400);
 await is('a recent folder asks for access and opens its own README', `__g.asked >= 1 && __folderName() === 'gamma/' && document.querySelector('#output h1').textContent === 'gamma'`);
