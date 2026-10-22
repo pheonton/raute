@@ -89,4 +89,13 @@ for (const view of ['preview', 'split']) {
   c.report(`no second scroll bar with a formula at the end (${view})`, r.page === r.window, r);
 }
 
+// 8. Printing suggests the file's name: energie.md prints to energie.pdf.
+await evaluate(`(() => { const f = new File(['# Energie'], 'energie-aufgaben.md'); const dt = new DataTransfer(); dt.items.add(f);
+  const el = document.getElementById('file-input'); Object.defineProperty(el, 'files', { value: dt.files, configurable: true }); el.dispatchEvent(new Event('change')); })()`);
+await sleep(300);
+r = await evaluate(`(() => { const screen = document.title; dispatchEvent(new Event('beforeprint')); const printing = document.title;
+  dispatchEvent(new Event('afterprint')); return { screen, printing, after: document.title }; })()`);
+c.report('window title names the file; printing suggests energie-aufgaben.pdf',
+  r.screen === 'energie-aufgaben.md – Raute' && r.printing === 'energie-aufgaben' && r.after === r.screen, r);
+
 c.finish(ws);

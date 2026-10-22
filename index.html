@@ -1671,8 +1671,20 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     state.name = name;
     fileName.textContent = name;
     fileName.title = name;
+    document.title = name === SAMPLE_NAME ? 'Raute' : name + ' – Raute';
     updateFolderUI();
   }
+
+  /* Browsers suggest the page title as the PDF's name: while printing it is
+     the file's name without .md, so energie.md prints to energie.pdf. */
+  var screenTitle = '';
+  window.addEventListener('beforeprint', function () {
+    screenTitle = document.title;
+    if (state.name !== SAMPLE_NAME) document.title = state.name.replace(/\.(?:md|markdown|mdown|txt)$/i, '');
+  });
+  window.addEventListener('afterprint', function () {
+    if (screenTitle) document.title = screenTitle;
+  });
 
   function setNotice(msg, showUndo) {
     notice.textContent = msg || '';
