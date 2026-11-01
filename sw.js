@@ -1,6 +1,6 @@
 /* Raute: keeps a copy of every file so the app opens without a connection.
    Change VERSION whenever you change any file, so browsers fetch the new copies. */
-const VERSION = 'v30';
+const VERSION = 'v31';
 const CACHE = 'raute-' + VERSION;
 const ASSETS = [
   "./",
@@ -67,6 +67,10 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Look only in this version's copy: during an update the old copy still exists
+// for a moment and must not answer.
+const fromCache = (req) => caches.open(CACHE).then((cache) => cache.match(req, { ignoreSearch: true }));
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
@@ -79,11 +83,11 @@ self.addEventListener('fetch', (event) => {
           if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((cache) => cache.put('index.html', copy)); }
           return res;
         })
-        .catch(() => caches.match('index.html'))
+        .catch(() => fromCache('index.html'))
     );
     return;
   }
 
   // Everything else: saved copy first.
-  event.respondWith(caches.match(req, { ignoreSearch: true }).then((hit) => hit || fetch(req)));
+  event.respondWith(fromCache(req).then((hit) => hit || fetch(req)));
 });
