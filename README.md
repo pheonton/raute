@@ -71,6 +71,8 @@ between them. Raute only keeps the files it can use (Markdown, text, PDFs
 and pictures), up to 20,000 of them; Word files, videos, archives and the
 like are skipped, as are hidden folders and `node_modules`. A handy way to
 work is to open one parent folder that holds everything you are working on.
+A folder opens at its `README.md` (or `index.md`) if it has one at the top;
+otherwise no file opens, and you choose one from the list.
 
 The filter box above the tree narrows it down: every word you type must
 appear somewhere in the path, ignoring case and accents, so `10 ener` finds

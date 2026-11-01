@@ -1228,8 +1228,22 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     state.path = null;
   }
 
+  /* A folder's start page: README or index at its top level, if there is one. */
   function startFile(f) {
-    return f.md.filter(function (p) { return /^(?:readme|index)\.(?:md|markdown|mdown)$/i.test(p); })[0] || f.md[0] || null;
+    return f.md.filter(function (p) { return /^(?:readme|index)\.(?:md|markdown|mdown)$/i.test(p); })[0] || null;
+  }
+
+  /* Opens the start page, or else an empty page so a file can be chosen from the tree. */
+  async function openFolderStart() {
+    var start = startFile(folder);
+    if (start) { await openFromFolder(start); return; }
+    if (!(await settle())) return;
+    cleared = null;
+    lastFile = null;
+    state.path = null;
+    resetDisk(null);
+    load('', 'Untitled');
+    setNotice('Opened “' + folder.name + '”.', false);
   }
 
   async function backToFolder() {
@@ -1238,11 +1252,8 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     aside = null;
     folder = back.folder;
     lastFile = null;
-    var path = back.path && folder.entries.has(back.path) ? back.path : startFile(folder);
-    if (path) { await openFromFolder(path); return; }
-    state.path = null;
-    updateFolderUI();
-    render();
+    if (back.path && folder.entries.has(back.path)) await openFromFolder(back.path);
+    else await openFolderStart();
   }
   asideBtn.addEventListener('click', backToFolder);
 
@@ -1308,7 +1319,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     var replaceable = !lastFile &&
       (state.name === SAMPLE_NAME || state.text.trim() === '' || !!previous);
     if (!path && replaceable && folder.md.length) {
-      await openFromFolder(startFile(folder));
+      await openFolderStart();
     } else {
       updateFolderUI();
       render();
@@ -1573,6 +1584,9 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     var blank = text.trim() === '';
     var seq = ++renderSeq;
     empty.hidden = !blank;
+    empty.textContent = folder && !state.path
+      ? '“' + folder.name + '” is open. Choose a file from the list, or press Ctrl+K to search.'
+      : 'Nothing to preview yet. Type Markdown in the source pane, or open a file.';
     output.hidden = blank;
 
     if (blank) {

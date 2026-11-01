@@ -106,4 +106,16 @@ await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, dev
 // Back on a computer screen the sidebar is there again.
 await is('on a wide screen the sidebar shows again', `__tree().shown && document.getElementById('tree-btn').hidden`);
 
+// A parent folder without a README at its top: no random file, an empty page with a hint.
+await evaluate(`(() => {
+  document.getElementById('new-btn').click();
+  const mk = (path, text) => { const f = new File([text], path.split('/').pop()); Object.defineProperty(f, 'webkitRelativePath', { value: path }); return f; };
+  const dt = new DataTransfer();
+  [mk('Schule/Physik/10/a.md', '# A'), mk('Schule/Mathe/b.md', '# B'), mk('Schule/Physik/README.md', '# Physik')].forEach((f) => dt.items.add(f));
+  const el = document.getElementById('folder-input'); Object.defineProperty(el, 'files', { value: dt.files, configurable: true }); el.dispatchEvent(new Event('change'));
+})(); 1`);
+await is('no README at the top: no file opens, the page says to choose one',
+  `(() => { const t = __tree(); return t.shown && t.current === null && t.heading === null && document.getElementById('source').value === ''
+    && document.getElementById('empty').textContent === '“Schule” is open. Choose a file from the list, or press Ctrl+K to search.'; })()`);
+
 c.finish(ws);
