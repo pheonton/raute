@@ -1,10 +1,12 @@
 /* Raute: keeps a copy of every file so the app opens without a connection.
-   Change VERSION whenever you change any file, so browsers fetch the new copies. */
-const VERSION = 'v31';
+   The version lives in version.js; change it whenever any file changes. */
+importScripts('version.js');
+const VERSION = self.RAUTE_VERSION;
 const CACHE = 'raute-' + VERSION;
 const ASSETS = [
   "./",
   "index.html",
+  "version.js",
   "manifest.webmanifest",
   "icons/icon.svg",
   "icons/icon-192.png",

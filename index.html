@@ -129,6 +129,7 @@
   .menu-item svg { flex: none; color: var(--muted); }
   label.menu-item:focus-within { outline: 2px solid var(--accent); outline-offset: -2px; }
   .side-empty { margin: 14px 16px; color: var(--muted); font-size: 13.5px; }
+  .side-version { margin: auto 0 0; padding: 6px 12px 8px; color: var(--muted); font-size: 12px; }
   .icon-btn { display: inline-flex; align-items: center; justify-content: center; padding: 6px 8px; color: var(--muted); }
   .icon-btn:hover { color: var(--ink); }
   .icon-btn svg { display: block; margin-block: 0.75px; }
@@ -562,6 +563,7 @@
     <div class="tree-list" id="tree-list"></div>
   </nav>
   <p class="side-empty" id="side-empty">Open a folder to see its files here.</p>
+  <p class="side-version" id="app-version"></p>
 </aside>
 
 <div class="main-col">
@@ -593,7 +595,7 @@
 
 <footer class="status">
   <span id="counts">0 words</span>
-  <span id="notice-wrap"><span id="notice"></span> <button type="button" id="undo-btn" hidden>Undo</button></span>
+  <span id="notice-wrap"><span id="notice"></span> <button type="button" id="undo-btn" hidden>Undo</button> <button type="button" id="update-btn" hidden>Reload</button></span>
 </footer>
 </div>
 </div>
@@ -657,6 +659,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
 <script src="vendor/marked.min.js"></script>
 <script src="vendor/purify.min.js"></script>
 <script src="vendor/katex.min.js"></script>
+<script src="version.js"></script>
 <script>
 (function () {
   var SAMPLE = document.getElementById('sample').textContent.replace(/^\n/, '');
@@ -1817,6 +1820,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   function setNotice(msg, showUndo) {
     notice.textContent = msg || '';
     undoBtn.hidden = !showUndo;
+    document.getElementById('update-btn').hidden = true;
   }
 
   function load(text, name) {
@@ -2207,11 +2211,35 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     });
   }
 
+  /* ---------- version and updates ---------- */
+  var version = typeof RAUTE_VERSION === 'string' ? RAUTE_VERSION : '';
+  var versionEl = document.getElementById('app-version');
+  versionEl.textContent = version ? 'Raute ' + version : '';
+  try {
+    var seen = localStorage.getItem('raute-version');
+    if (version && seen && seen !== version) setNotice('Updated to ' + version + '.', false);
+    if (version) localStorage.setItem('raute-version', version);
+  } catch (e) { /* storage unavailable */ }
+
   /* Offline support. Needs http(s); opening index.html straight from disk works without it. */
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    var hadWorker = !!navigator.serviceWorker.controller;
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function () { /* the app still works online */ });
+      /* updateViaCache: 'none' so a changed version.js is noticed right away */
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(function () { /* the app still works online */ });
     });
+    /* A newer version took over in the background: offer to reload, unless
+       this page already is that version. */
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (!hadWorker) { hadWorker = true; return; }
+      fetch('version.js', { cache: 'no-store' }).then(function (res) { return res.text(); }).then(function (text) {
+        var m = /RAUTE_VERSION\s*=\s*'([^']+)'/.exec(text);
+        if (!m || m[1] === version) return;
+        setNotice('Version ' + m[1] + ' is ready.', false);
+        document.getElementById('update-btn').hidden = false;
+      }).catch(function () { /* offline: nothing to offer */ });
+    });
+    document.getElementById('update-btn').addEventListener('click', function () { location.reload(); });
   }
 })();
 </script>

@@ -119,8 +119,11 @@ an allowed recent folder holds it, Raute opens that folder by itself. A folder t
 
 ## Updating
 
-When you change any file, also change `VERSION` at the top of `sw.js`.
-Browsers then fetch fresh copies instead of using their saved ones.
+When you change any file, also change the version in `version.js`.
+Browsers then fetch fresh copies instead of using their saved ones. The
+version shows at the bottom of the sidebar; when a newer one arrives while
+Raute is open, the status line offers **Reload**, and after an update it says
+"Updated to …" once.
 
 ## Tests
 
