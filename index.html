@@ -416,6 +416,13 @@
   .md .front-matter { margin: 0 0 1.5em; border: 1px solid var(--rule); border-radius: 6px; font-size: 0.85em; }
   .md .front-matter summary { padding: 4px 10px; color: var(--muted); font-family: var(--font-mono); cursor: pointer; }
   .md .front-matter pre { margin: 0; border-radius: 0 0 6px 6px; }
+  /* Pandoc ::: blocks keep the usual gap below, like paragraphs */
+  .md div:not(.table-wrap):not(.math-block) { margin: 0 0 1em; }
+  .md div:not(.table-wrap):not(.math-block) > :last-child { margin-bottom: 0; }
+  /* Pandoc's built-in span classes */
+  .md .smallcaps { font-variant: small-caps; }
+  .md .underline { text-decoration: underline; }
+  .md .mark { background: color-mix(in srgb, var(--warn) 25%, transparent); color: inherit; padding: 0 0.15em; border-radius: 2px; }
   .md hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
   .md img { max-width: 100%; height: auto; }
   .md .table-wrap { overflow-x: auto; }
@@ -751,6 +758,113 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     ]
   };
   if (canRender) marked.use(mathExtension);
+
+  /* ---------- Pandoc attributes ----------
+     {#id .class key=value} after headings, links, pictures, [spans] and code
+     fences, plus ::: fenced divs. Only harmless attributes come through: id,
+     classes, style (nothing loaded from outside), width/height, lang, title;
+     anything else becomes a data- attribute. */
+  var ATTR_TOKEN = /\s*(?:#([^\s.#{}"']+)|\.([^\s.#{}"']+)|([A-Za-z_][\w:-]*)=(?:"([^"]*)"|'([^']*)'|([^\s"'{}]+))|(-))/y;
+  function parseAttrs(src) {
+    var out = { id: '', classes: [], pairs: [] }, m;
+    ATTR_TOKEN.lastIndex = 0;
+    src = src.trim();
+    if (!src) return null;
+    while (ATTR_TOKEN.lastIndex < src.length && (m = ATTR_TOKEN.exec(src))) {
+      if (m[1]) out.id = m[1];
+      else if (m[2]) out.classes.push(m[2]);
+      else if (m[3]) out.pairs.push([m[3].toLowerCase(), m[4] !== undefined ? m[4] : m[5] !== undefined ? m[5] : m[6]]);
+      else if (m[7]) out.classes.push('unnumbered');
+    }
+    return ATTR_TOKEN.lastIndex === src.length ? out : null; // anything else is plain text, not attributes
+  }
+  function attrHtml(a) {
+    var html = '', styles = [];
+    if (a.id) html += ' id="' + escapeAttr(a.id) + '"';
+    if (a.classes.length) html += ' class="' + escapeAttr(a.classes.join(' ')) + '"';
+    a.pairs.forEach(function (p) {
+      var key = p[0], value = p[1];
+      if (key === 'style') styles.push(value);
+      else if (key === 'width' || key === 'height') styles.push(key + ':' + (/^\d+(?:\.\d+)?$/.test(value) ? value + 'px' : value));
+      else if (key === 'lang' || key === 'title') html += ' ' + key + '="' + escapeAttr(value) + '"';
+      else if (/^[a-z][a-z0-9-]*$/.test(key)) html += ' data-' + key + '="' + escapeAttr(value) + '"';
+    });
+    var style = styles.join(';').replace(/url\s*\([^)]*\)?/gi, '').replace(/@import/gi, '');
+    if (style.replace(/[\s;]/g, '')) html += ' style="' + escapeAttr(style) + '"';
+    return html;
+  }
+
+  var TRAILING_ATTRS = /\s*\{([^{}\n]*)\}\s*$/;
+  var LINK_ATTRS = /^(!?\[(?:\[[^\]]*\]|[^\[\]])*\]\((?:[^()\s]|\([^()\s]*\))*(?:\s+(?:"[^"]*"|'[^']*'))?\s*\))\{([^{}\n]*)\}/;
+  var SPAN_ATTRS = /^\[((?:\[[^\]]*\]|[^\[\]])*)\]\{([^{}\n]*)\}/;
+  var DIV_OPEN = /^ {0,3}(:{3,})[ \t]*(?:\{([^{}\n]*)\}|([^\s{}:]+))[ \t]*:*[ \t]*(?:\n|$)/;
+  var DIV_CLOSE = /^ {0,3}:{3,}[ \t]*$/;
+
+  var pandocExtension = {
+    extensions: [
+      {
+        name: 'pandocDiv',
+        level: 'block',
+        start: function (src) {
+          var m = /(^|\n) {0,3}:{3,}/.exec(src);
+          if (m) return m.index + m[1].length;
+        },
+        tokenizer: function (src) {
+          var open = DIV_OPEN.exec(src);
+          if (!open) return;
+          var attrs = open[2] !== undefined ? parseAttrs(open[2]) : { id: '', classes: [open[3]], pairs: [] };
+          if (!attrs) return;
+          var lines = src.slice(open[0].length).split('\n'), depth = 1, body = [], raw = open[0];
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i], last = i === lines.length - 1;
+            if (DIV_OPEN.test(line + '\n')) depth++;
+            else if (DIV_CLOSE.test(line) && --depth === 0) { raw += line + (last ? '' : '\n'); break; }
+            body.push(line);
+            raw += line + (last ? '' : '\n');
+          }
+          if (depth) return; // never closed: not a div
+          return { type: 'pandocDiv', raw: raw, attrs: attrs, tokens: this.lexer.blockTokens(body.join('\n')) };
+        },
+        renderer: function (token) {
+          return '<div' + attrHtml(token.attrs) + '>\n' + this.parser.parse(token.tokens) + '</div>\n';
+        }
+      },
+      {
+        name: 'pandocInline',
+        level: 'inline',
+        start: function (src) {
+          var i = src.search(/!?\[/);
+          if (i >= 0) return i;
+        },
+        tokenizer: function (src) {
+          var m = LINK_ATTRS.exec(src), attrs;
+          if (m && (attrs = parseAttrs(m[2]))) return { type: 'pandocInline', raw: m[0], attrs: attrs, wrap: false, tokens: this.lexer.inlineTokens(m[1]) };
+          m = SPAN_ATTRS.exec(src);
+          if (m && (attrs = parseAttrs(m[2]))) return { type: 'pandocInline', raw: m[0], attrs: attrs, wrap: true, tokens: this.lexer.inlineTokens(m[1]) };
+        },
+        renderer: function (token) {
+          var inner = this.parser.parseInline(token.tokens), attrs = attrHtml(token.attrs);
+          if (token.wrap) return '<span' + attrs + '>' + inner + '</span>';
+          return inner.replace(/^<(a|img)\b/, '<$1' + attrs);
+        }
+      }
+    ],
+    renderer: {
+      heading: function (text, level, raw) {
+        var m = TRAILING_ATTRS.exec(raw), attrs = m && parseAttrs(m[1]);
+        if (!attrs) return false;
+        return '<h' + level + attrHtml(attrs) + '>' + text.replace(TRAILING_ATTRS, '') + '</h' + level + '>\n';
+      },
+      code: function (code, info) {
+        var m = /^\s*([^\s{]*)\s*\{([^{}]*)\}\s*$/.exec(info || ''), attrs = m && parseAttrs(m[2]);
+        if (!attrs) return false;
+        var lang = m[1] || attrs.classes.shift() || '';
+        code = code.replace(/\n$/, '') + '\n';
+        return '<pre' + attrHtml(attrs) + '><code' + (lang ? ' class="language-' + escapeAttr(lang) + '"' : '') + '>' + escapeHtml(code) + '</code></pre>\n';
+      }
+    }
+  };
+  if (canRender) marked.use(pandocExtension);
 
   var mathCache = new Map();
   function typeset(root) {

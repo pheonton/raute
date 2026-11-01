@@ -98,4 +98,57 @@ r = await evaluate(`(() => { const screen = document.title; dispatchEvent(new Ev
 c.report('window title names the file; printing suggests energie-aufgaben.pdf',
   r.screen === 'energie-aufgaben.md – Raute' && r.printing === 'energie-aufgaben' && r.after === r.screen, r);
 
+// 9. Pandoc attributes in curly braces.
+await type([
+  '<style>.red { color: rgb(255, 0, 0) } .box { border: 2px solid rgb(0, 0, 255) }</style>',
+  '',
+  '# Title {#start .red}',
+  '',
+  'Some [red words]{.red} and [styled]{style="color: rgb(0, 128, 0)"} and [Smallcaps]{.smallcaps}.',
+  '',
+  '![picture](https://example.org/p.png){width=50% .framed}',
+  '',
+  '[a link](https://example.org){.button target=_blank}',
+  '',
+  '```{.python .numberLines}',
+  'print(1)',
+  '```',
+  '',
+  '::: box',
+  'Inside the **box**.',
+  '',
+  '::: {.inner #deep}',
+  'Nested.',
+  ':::',
+  ':::',
+  '',
+  'Not attributes: {just braces} and [brackets] stay text.',
+].join('\n'));
+await sleep(300);
+r = await evaluate(`(() => { const o = document.getElementById('output'); const q = (s) => o.querySelector(s);
+  return {
+    h1: q('h1') && q('h1').id + '|' + q('h1').className + '|' + q('h1').textContent + '|' + getComputedStyle(q('h1')).color,
+    span: q('span.red') && q('span.red').textContent + '|' + getComputedStyle(q('span.red')).color,
+    styled: [...o.querySelectorAll('span')].map((x) => x.getAttribute('style')).filter(Boolean)[0] || null,
+    smallcaps: q('span.smallcaps') ? getComputedStyle(q('span.smallcaps')).fontVariantCaps : null,
+    img: q('img') && q('img').className + '|' + q('img').style.width,
+    link: q('a.button') && q('a.button').getAttribute('data-target'),
+    code: q('pre.numberLines code.language-python') ? q('pre code').textContent : null,
+    div: q('div.box') && q('div.box').textContent.trim().replace(/\\s+/g, ' ') + '|' + getComputedStyle(q('div.box')).borderTopColor,
+    nested: q('div.box > div.inner#deep') ? 'yes' : 'no',
+    plain: [...o.querySelectorAll('p')].pop().textContent,
+  }; })()`);
+c.report('pandoc: heading {#id .class}', r.h1 === 'start|red|Title|rgb(255, 0, 0)', r.h1);
+c.report('pandoc: [span]{.class} and {style=…} and .smallcaps', r.span === 'red words|rgb(255, 0, 0)' && r.styled === 'color: rgb(0, 128, 0)' && r.smallcaps === 'small-caps', r);
+c.report('pandoc: picture {width=50%} and link {.class key=val → data-key}', r.img === 'framed|50%' && r.link === '_blank', r);
+c.report('pandoc: code fence {.python .numberLines}', r.code === 'print(1)\n', r.code);
+c.report('pandoc: ::: fenced divs, also nested', r.div === 'Inside the box. Nested.|rgb(0, 0, 255)' && r.nested === 'yes', r);
+c.report('pandoc: plain braces and brackets stay text', r.plain === 'Not attributes: {just braces} and [brackets] stay text.', r.plain);
+
+await type('[x]{onclick="alert(1)" style="background: url(https://example.com/t.png); color: rgb(1, 2, 3)"}\n\n# H {onmouseover=alert(2)}');
+await sleep(300);
+r = await evaluate(`(() => { const o = document.getElementById('output'); const sp = o.querySelector('span'); const h = o.querySelector('h1');
+  return { onclick: sp.hasAttribute('onclick'), data: sp.getAttribute('data-onclick'), style: sp.getAttribute('style'), h: h.getAttributeNames().join(',') }; })()`);
+c.report('pandoc: no scripts, nothing loaded from outside', !r.onclick && r.data === 'alert(1)' && !/url|example/.test(r.style) && /rgb\(1, 2, 3\)/.test(r.style) && !/^on|,on/.test(r.h), r);
+
 c.finish(ws);

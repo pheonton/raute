@@ -60,6 +60,21 @@ as a), b), c)) are kept. Anything that would load a file
 needs a browser that supports CSS `@scope` (current Chrome, Edge and Safari);
 browsers without it ignore the block.
 
+## Pandoc attributes
+
+Raute understands Pandoc's attributes in curly braces:
+
+- `# Title {#id .class}` on headings
+- `[some words]{.class}` or `[some words]{style="color: red"}` for a span
+- `![picture](bild.png){width=50%}` and `[link](page.md){.class}`
+- ```` ```{.python} ```` on code blocks
+- `::: warning` … `:::` (or `::: {.note #id}`) to wrap a block, also nested
+
+Classes come alive with a `<style>` block in the file (see above). Pandoc's
+`.smallcaps`, `.underline` and `.mark` work right away. Only harmless
+attributes are kept: id, classes, style (nothing loaded from outside),
+width and height, lang and title; anything else becomes a `data-` attribute.
+
 ## Pictures and links to other files
 
 A web page only receives the one file it is given, not the folder around it.
