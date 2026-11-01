@@ -151,4 +151,14 @@ r = await evaluate(`(() => { const o = document.getElementById('output'); const 
   return { onclick: sp.hasAttribute('onclick'), data: sp.getAttribute('data-onclick'), style: sp.getAttribute('style'), h: h.getAttributeNames().join(',') }; })()`);
 c.report('pandoc: no scripts, nothing loaded from outside', !r.onclick && r.data === 'alert(1)' && !/url|example/.test(r.style) && /rgb\(1, 2, 3\)/.test(r.style) && !/^on|,on/.test(r.h), r);
 
+// 10. Paths in <angle brackets> (with spaces), width in %, and align.
+await type('![](<_assets/Mechanik 01.png>){width=85%}\n\n![x](<_assets/a b.png> "Title"){width=25% align="right"}\n\n![](<leer.svg>){width=1.9cm height=0.5cm}');
+await sleep(300);
+r = await evaluate(`(() => { const t = document.createElement('template'); t.innerHTML = marked.parse(document.getElementById('source').value); return [...t.content.querySelectorAll('img')].map((i) => i.getAttribute('style')); })()`);
+c.report('pandoc: <path with spaces>{width=85%}, align=right, sizes in cm', JSON.stringify(r) === JSON.stringify([
+  'width:85%', 'width:25%;float:right;margin:0 0 0.5em 1em', 'width:1.9cm;height:0.5cm']), r);
+
+r = await evaluate(`document.querySelector('#output .img-missing').textContent`);
+c.report('a missing picture is named as written (spaces, not %20)', r === 'Image not shown: _assets/Mechanik 01.png', r);
+
 c.finish(ws);

@@ -789,6 +789,8 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       var key = p[0], value = p[1];
       if (key === 'style') styles.push(value);
       else if (key === 'width' || key === 'height') styles.push(key + ':' + (/^\d+(?:\.\d+)?$/.test(value) ? value + 'px' : value));
+      else if (key === 'align' && /^(?:left|right)$/i.test(value)) styles.push('float:' + value.toLowerCase(), 'margin:0 ' + (/^left$/i.test(value) ? '1em 0.5em 0' : '0 0.5em 1em'));
+      else if (key === 'align' && /^center$/i.test(value)) styles.push('display:block', 'margin-inline:auto');
       else if (key === 'lang' || key === 'title') html += ' ' + key + '="' + escapeAttr(value) + '"';
       else if (/^[a-z][a-z0-9-]*$/.test(key)) html += ' data-' + key + '="' + escapeAttr(value) + '"';
     });
@@ -798,7 +800,8 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   }
 
   var TRAILING_ATTRS = /\s*\{([^{}\n]*)\}\s*$/;
-  var LINK_ATTRS = /^(!?\[(?:\[[^\]]*\]|[^\[\]])*\]\((?:[^()\s]|\([^()\s]*\))*(?:\s+(?:"[^"]*"|'[^']*'))?\s*\))\{([^{}\n]*)\}/;
+  /* the destination may be <in angle brackets> when it contains spaces */
+  var LINK_ATTRS = /^(!?\[(?:\[[^\]]*\]|[^\[\]])*\]\(\s*(?:<[^<>\n]*>|(?:[^()\s]|\([^()\s]*\))*)(?:\s+(?:"[^"]*"|'[^']*'))?\s*\))\{([^{}\n]*)\}/;
   var SPAN_ATTRS = /^\[((?:\[[^\]]*\]|[^\[\]])*)\]\{([^{}\n]*)\}/;
   var DIV_OPEN = /^ {0,3}(:{3,})[ \t]*(?:\{([^{}\n]*)\}|([^\s{}:]+))[ \t]*:*[ \t]*(?:\n|$)/;
   var DIV_CLOSE = /^ {0,3}:{3,}[ \t]*$/;
@@ -963,7 +966,9 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   function markMissing(img, ref) {
     var note = document.createElement('span');
     note.className = 'img-missing';
-    note.textContent = 'Image not shown: ' + ref;
+    var shown = ref;
+    try { shown = decodeURI(ref); } catch (e) { /* keep as written */ }
+    note.textContent = 'Image not shown: ' + shown;
     note.dataset.ref = ref;
     img.replaceWith(note);
   }
