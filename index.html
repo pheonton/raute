@@ -1807,7 +1807,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     state.name = name;
     fileName.textContent = name;
     fileName.title = name;
-    document.title = name === SAMPLE_NAME ? 'Raute' : name + ' – Raute';
+    document.title = name === SAMPLE_NAME ? 'Raute' : name; // the installed app adds "Raute - " in front itself
     updateFolderUI();
   }
 

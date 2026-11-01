@@ -96,7 +96,7 @@ await sleep(300);
 r = await evaluate(`(() => { const screen = document.title; dispatchEvent(new Event('beforeprint')); const printing = document.title;
   dispatchEvent(new Event('afterprint')); return { screen, printing, after: document.title }; })()`);
 c.report('window title names the file; printing suggests energie-aufgaben.pdf',
-  r.screen === 'energie-aufgaben.md – Raute' && r.printing === 'energie-aufgaben' && r.after === r.screen, r);
+  r.screen === 'energie-aufgaben.md' && r.printing === 'energie-aufgaben' && r.after === r.screen, r);
 
 // 9. Pandoc attributes in curly braces.
 await type([
