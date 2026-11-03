@@ -430,6 +430,7 @@
   .md table { border-collapse: collapse; font-size: 0.93em; font-variant-numeric: tabular-nums; }
   .md th, .md td { border: 1px solid var(--rule); padding: 6px 12px; text-align: left; vertical-align: top; }
   .md th { background: var(--code-bg); font-weight: 700; }
+  .md thead:not(:has(th:not(:empty))) { display: none; } /* a header row with nothing in it */
 
   /* formulas: a wide one scrolls inside its own box */
   .md .math-block { margin: 0 0 1em; padding-block: 4px; overflow-x: auto; overflow-y: hidden; }

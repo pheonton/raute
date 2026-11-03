@@ -161,4 +161,10 @@ c.report('pandoc: <path with spaces>{width=85%}, align=right, sizes in cm', JSON
 r = await evaluate(`document.querySelector('#output .img-missing').textContent`);
 c.report('a missing picture is named as written (spaces, not %20)', r === 'Image not shown: _assets/Mechanik 01.png', r);
 
+// 11. A completely empty table header is hidden; one with an empty cell stays.
+await type('| | |\n|---|---|\n| a | b |\n\n| | Ereignis |\n|---|---|\n| A | x |');
+await sleep(300);
+r = await evaluate(`[...document.querySelectorAll('#output thead')].map((h) => getComputedStyle(h).display)`);
+c.report('empty table header hidden, partly empty header kept', JSON.stringify(r) === JSON.stringify(['none', 'table-header-group']), r);
+
 c.finish(ws);
