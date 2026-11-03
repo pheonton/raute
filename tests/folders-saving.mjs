@@ -151,13 +151,13 @@ await is('a link to a Word file says Raute does not open it', `document.getEleme
 // ---------- New ----------
 await evaluate(`__type('# Keep me'); document.getElementById('view-preview').click(); document.getElementById('new-btn').click(); 1`);
 await is('New opens an empty, untitled document in Split', `document.getElementById('source').value === '' && __ui().view === 'split'
-  && document.getElementById('notice').textContent === 'New document.' && !document.getElementById('undo-btn').hidden && document.getElementById('new-btn').textContent.trim() === 'New'`);
+  && document.getElementById('notice').textContent === 'New document.' && !document.getElementById('undo-btn').hidden && document.getElementById('new-btn').textContent.trim() === 'New document'`);
 await evaluate(`document.getElementById('undo-btn').click(); 1`);
 await is('Undo brings the previous document back', `document.getElementById('source').value === '# Keep me'`);
 
 // ---------- fresh start ----------
 await send('Page.navigate', { url: base }); await sleep(1200);
 await evaluate(helpers);
-await check('restart shows the sample with no folder, in Preview', { file: 'sample.md (example)', folder: null, aside: null, heading: 'Raute', view: 'preview' });
+await is('restart shows the start screen, no folder, no document', `!document.getElementById('start').hidden && document.getElementById('panes').checkVisibility() === false && document.getElementById('folder-box').hidden`);
 
 c.finish(ws);

@@ -35,7 +35,23 @@ await is('list keeps the last 10', `__recent().length === 10 && __recent()[0] ==
 await evaluate(`(async () => { await __pickDir(__mkDir('docs')); await __pickDir(__mkDir('docs')); })()`);
 await is('same names are told apart', `__recent()[0] === 'docs' && __recent()[1] === 'docs (2)'`);
 
-// The list opens on hover, closes after leaving, and works with the keyboard.
+// With a folder open the sidebar shows the tree, and Recent lives in the … menu.
+await is('with a folder open the menu is hidden', `!document.getElementById('menu').checkVisibility() && document.getElementById('more-btn').checkVisibility()`);
+await evaluate(`document.getElementById('more-btn').click(); 1`);
+await is('… lists change folder, recent folders, new document, single file',
+  `(() => { const l = document.getElementById('more-list'); const items = [...l.querySelectorAll('.recent-item')].map((b) => b.textContent);
+    return !l.hidden && items[0] === 'Change working folder…' && items.includes('docs (2)') === false && items.includes('New document') && items.at(-1) === 'Open a single file'
+      && document.activeElement === l.querySelector('.recent-item'); })()`);
+await evaluate(`document.getElementById('more-list').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 1`);
+await is('Esc closes … and returns to the button', `document.getElementById('more-list').hidden && document.activeElement === document.getElementById('more-btn')`);
+
+// A file from elsewhere sets the folder aside: the menu with Recent is back.
+await evaluate(`window.showOpenFilePicker = async () => [{ kind: 'file', name: 'outside.md', getFile: async () => new File(['# Outside'], 'outside.md') }];
+  document.getElementById('file-input').click(); 1`);
+await sleep(400);
+await is('a file from elsewhere brings the menu back', `document.getElementById('menu').checkVisibility() && document.getElementById('recent-row').checkVisibility()`);
+
+// The Recent list opens on hover, closes after leaving, and works with the keyboard.
 const list = `document.getElementById('recent-list')`;
 await is('the list is closed at first', `${list}.hidden`);
 await evaluate(`document.getElementById('recent-row').dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' })); 1`);
@@ -51,7 +67,7 @@ await evaluate(`${list}.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escap
 await is('Esc closes it and returns to Recent', `${list}.hidden && document.activeElement === document.getElementById('recent-btn')`);
 await evaluate(`document.getElementById('recent-row').dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'touch' })); 1`);
 await is('a finger is not hovering', `${list}.hidden`);
-await evaluate(`(async () => { window.__g = __mkDir('gamma', { id: 'G' }); await __pickDir(__g); await __pickDir(__mkDir('delta')); __g.perm = 'prompt'; __openRecent('gamma'); })()`);
+await evaluate(`(async () => { document.getElementById('new-btn').click(); window.__g = __mkDir('gamma', { id: 'G' }); await __pickDir(__g); await __pickDir(__mkDir('delta')); __g.perm = 'prompt'; __openRecent('gamma'); })()`);
 await sleep(400);
 await is('a recent folder asks for access and opens its own README', `__g.asked >= 1 && __folderName() === 'gamma/' && document.querySelector('#output h1').textContent === 'gamma'`);
 await evaluate(`(async () => { window.__o = __mkDir('old', { id: 'O' }); await __pickDir(__o); await __pickDir(__mkDir('eps'));

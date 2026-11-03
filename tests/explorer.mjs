@@ -45,8 +45,9 @@ await evaluate(helpers);
 const is = async (label, cond) => { await sleep(250); c.report(label, await evaluate(cond), await evaluate('__tree()')); };
 
 // At start the sidebar is open, with a hint instead of files.
-await is('the sidebar is open at start, with a hint and no tree yet',
-  `!document.getElementById('side').hidden && document.getElementById('tree-btn').hidden && !__tree().shown && document.getElementById('side-empty').checkVisibility()`);
+await is('at start: the sidebar shows the menu, the main area asks for a working folder',
+  `!document.getElementById('side').hidden && !__tree().shown && document.getElementById('menu').checkVisibility()
+   && document.getElementById('start').checkVisibility() && document.querySelector('.start-title').textContent === 'Choose a working folder'`);
 
 // Opening a folder shows the tree.
 await evaluate(`__openFolder(); 1`);

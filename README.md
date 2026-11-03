@@ -17,12 +17,19 @@ app and the offline cache, which need a web address.
 
 ## Layout
 
-On the left, a sidebar holds the menu (**New**, **Open file**, **Open
-folder**, **Recent** and the theme) and, below it, the files of the open
-folder. **New** starts an empty document; **Undo** in the status line brings
-back the one before. The sidebar is open at every start; its button at the
-top hides it, and the same button above the document brings it back. On a
-phone it slides in over the page.
+Raute works with a **working folder**: one folder (ideally a parent folder of
+everything you work on) whose Markdown files it lists on the left. It starts
+with a screen that asks for one: **Continue with "…"** reopens the last
+folder, the other recent folders are listed below, and small links open a
+single file, start a new document or show what Raute can do.
+
+With a folder open, the sidebar shows the folder's name, a filter box and its
+files. The **…** next to the name changes the folder, lists the recent ones,
+and starts a new document or opens a single file. Without a folder, the
+sidebar shows those choices directly. **New document** starts an empty
+document; **Undo** in the status line brings back the one before. The
+sidebar's button at the top hides it, and the same button above the document
+brings it back. On a phone it slides in over the page.
 
 The line above the document shows the open file and its state (saved or
 not, a folder set aside) and, on the right, the **Source / Split / Preview**
@@ -105,9 +112,9 @@ If you then open a file that is not in that folder, the folder is set aside:
 the sidebar no longer lists it, and a **Back to** button above the document returns to the
 folder.
 
-Raute starts fresh every time: when you close it, it forgets the open file,
-the folder and any changes that were not saved (it warns you first if there
-are unsaved changes).
+Raute starts fresh every time: when you close it, it forgets the open file
+and any changes that were not saved (it warns you first if there are unsaved
+changes), and starts again with the start screen.
 
 In Chrome and Edge, **Recent** under **Open folder** lists the last 10
 folders you opened; the list opens when the mouse moves over it (or on a
