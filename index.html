@@ -338,7 +338,6 @@
   .sub-btn span { flex: 1; }
   .sub-btn .chevron { flex: none; color: var(--muted); }
   .more-list .recent-list { top: -7px; left: calc(100% + 8px); }
-  .more-sep { margin: 6px 4px; border: 0; border-top: 1px solid var(--rule); }
   .tree-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
   .tree-filter {
     margin: 8px 8px 6px;
@@ -2276,7 +2275,6 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       if (canPickFolder) moreItem('Change working folder…', pickFolder);
       var others = recent.filter(function (h) { return !folder || h !== folder.handle; });
       if (others.length) moreList.appendChild(recentSubmenu(others));
-      moreList.appendChild(Object.assign(document.createElement('hr'), { className: 'more-sep' }));
       moreItem('New document', newDocument);
       moreItem('Open a single file', function () { fileInput.click(); });
     }
