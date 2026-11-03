@@ -334,7 +334,10 @@
     background: var(--surface);
     box-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
   }
-  .more-label { margin: 6px 12px 2px; font-size: 12px; color: var(--muted); }
+  .sub-btn { display: flex; align-items: center; }
+  .sub-btn span { flex: 1; }
+  .sub-btn .chevron { flex: none; color: var(--muted); }
+  .more-list .recent-list { top: -7px; left: calc(100% + 8px); }
   .more-sep { margin: 6px 4px; border: 0; border-top: 1px solid var(--rule); }
   .tree-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
   .tree-filter {
@@ -2271,14 +2274,8 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     if (open) {
       moreList.textContent = '';
       if (canPickFolder) moreItem('Change working folder…', pickFolder);
-      var others = recent.filter(function (h) { return !folder || h !== folder.handle; }).slice(0, 5);
-      if (others.length) {
-        var label = document.createElement('p');
-        label.className = 'more-label';
-        label.textContent = 'Recent';
-        moreList.appendChild(label);
-        others.forEach(function (h) { moreItem(h.name, function () { openRecent(h); }); });
-      }
+      var others = recent.filter(function (h) { return !folder || h !== folder.handle; });
+      if (others.length) moreList.appendChild(recentSubmenu(others));
       moreList.appendChild(Object.assign(document.createElement('hr'), { className: 'more-sep' }));
       moreItem('New document', newDocument);
       moreItem('Open a single file', function () { fileInput.click(); });
@@ -2286,12 +2283,74 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     moreList.hidden = !open;
     moreBtn.setAttribute('aria-expanded', String(open));
   }
+  /* "Recent ›" in the … menu: the folders open in a second list beside it,
+     on hover with a mouse, or with a click, a tap or → . */
+  function recentSubmenu(handles) {
+    var wrap = document.createElement('div');
+    wrap.className = 'recent-wrap';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'recent-item sub-btn';
+    btn.setAttribute('role', 'menuitem');
+    btn.setAttribute('aria-haspopup', 'menu');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.innerHTML = '<span>Recent</span>' + document.querySelector('#recent-btn .chevron').outerHTML;
+    var list = document.createElement('div');
+    list.className = 'recent-list';
+    list.setAttribute('role', 'menu');
+    list.hidden = true;
+    handles.forEach(function (h) {
+      var item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'recent-item';
+      item.setAttribute('role', 'menuitem');
+      item.textContent = h.name;
+      item.title = 'Open “' + h.name + '”';
+      item.addEventListener('click', function () { showMore(false); openRecent(h); });
+      list.appendChild(item);
+    });
+    var timer = 0;
+    function show(open) {
+      clearTimeout(timer);
+      list.hidden = !open;
+      btn.setAttribute('aria-expanded', String(open));
+    }
+    wrap.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') show(true); });
+    wrap.addEventListener('pointerleave', function (e) {
+      if (e.pointerType === 'mouse') timer = setTimeout(function () { show(false); }, 300);
+    });
+    btn.addEventListener('click', function (e) { show(e.pointerType === 'mouse' ? true : list.hidden); });
+    btn.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        show(true);
+        list.querySelector('.recent-item').focus();
+      }
+    });
+    list.addEventListener('keydown', function (e) {
+      var items = Array.from(list.children), at = items.indexOf(document.activeElement);
+      e.stopPropagation();
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        items[e.key === 'ArrowDown' ? Math.min(items.length - 1, at + 1) : Math.max(0, at - 1)].focus();
+      } else if (e.key === 'ArrowLeft' || e.key === 'Escape') {
+        e.preventDefault();
+        show(false);
+        btn.focus();
+      }
+    });
+    wrap.appendChild(btn);
+    wrap.appendChild(list);
+    return wrap;
+  }
+
   moreBtn.addEventListener('click', function () {
     showMore(moreList.hidden);
     if (!moreList.hidden) moreList.querySelector('.recent-item').focus();
   });
   moreList.addEventListener('keydown', function (e) {
-    var items = Array.from(moreList.querySelectorAll('.recent-item')), at = items.indexOf(document.activeElement);
+    var items = Array.from(moreList.querySelectorAll(':scope > .recent-item, :scope > .recent-wrap > .recent-item')), at = items.indexOf(document.activeElement);
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       items[e.key === 'ArrowDown' ? Math.min(items.length - 1, at + 1) : Math.max(0, at - 1)].focus();

@@ -38,10 +38,20 @@ await is('same names are told apart', `__recent()[0] === 'docs' && __recent()[1]
 // With a folder open the sidebar shows the tree, and Recent lives in the … menu.
 await is('with a folder open the menu is hidden', `!document.getElementById('menu').checkVisibility() && document.getElementById('more-btn').checkVisibility()`);
 await evaluate(`document.getElementById('more-btn').click(); 1`);
-await is('… lists change folder, recent folders, new document, single file',
-  `(() => { const l = document.getElementById('more-list'); const items = [...l.querySelectorAll('.recent-item')].map((b) => b.textContent);
-    return !l.hidden && items[0] === 'Change working folder…' && items.includes('docs (2)') === false && items.includes('New document') && items.at(-1) === 'Open a single file'
+await is('… lists change folder, Recent ›, new document, single file',
+  `(() => { const l = document.getElementById('more-list'); const top = [...l.querySelectorAll(':scope > .recent-item, :scope > .recent-wrap > .recent-item')].map((b) => b.textContent);
+    return !l.hidden && JSON.stringify(top) === JSON.stringify(['Change working folder…', 'Recent', 'New document', 'Open a single file'])
       && document.activeElement === l.querySelector('.recent-item'); })()`);
+await evaluate(`document.querySelector('#more-list .recent-wrap').dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' })); 1`);
+await is('hovering Recent opens the folders beside it', `(() => { const sub = document.querySelector('#more-list .recent-wrap .recent-list');
+  const names = [...sub.children].map((b) => b.textContent); return !sub.hidden && names.length === __recent().length - 1 && names[0] === 'docs' && names[1] === 'f11' && getComputedStyle(sub).position === 'absolute'; })()`);
+await evaluate(`document.querySelector('#more-list .recent-wrap').dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'mouse' })); 1`);
+await sleep(450);
+await is('leaving closes the folders again', `document.querySelector('#more-list .recent-wrap .recent-list').hidden`);
+await evaluate(`document.querySelector('#more-list .sub-btn').focus(); document.querySelector('#more-list .sub-btn').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); 1`);
+await is('→ opens them and focuses the first folder', `document.activeElement === document.querySelector('#more-list .recent-wrap .recent-list .recent-item')`);
+await evaluate(`document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })); 1`);
+await is('← closes them and returns to Recent', `document.querySelector('#more-list .recent-wrap .recent-list').hidden && document.activeElement === document.querySelector('#more-list .sub-btn')`);
 await evaluate(`document.getElementById('more-list').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 1`);
 await is('Esc closes … and returns to the button', `document.getElementById('more-list').hidden && document.activeElement === document.getElementById('more-btn')`);
 
