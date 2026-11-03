@@ -23,10 +23,11 @@ with a screen that asks for one: **Continue with "…"** reopens the last
 folder, the other recent folders are listed below, and small links open a
 single file, start a new document or show what Raute can do.
 
-With a folder open, the sidebar shows the folder's name, a filter box and its
-files. The **…** next to the name changes the folder, lists the recent ones,
-and starts a new document or opens a single file. Without a folder, the
-sidebar shows those choices directly. **New document** starts an empty
+The sidebar always starts with four lines: **Change working folder…** (or
+**Choose a working folder…** before one is open), **Recent ›** (the other
+recent folders, opening beside it on hover), **Open a single file** and **New
+document**. Below them come the open folder's name, a filter box and its
+files. **New document** starts an empty
 document; **Undo** in the status line brings back the one before. The
 sidebar's button at the top hides it, and the same button above the document
 brings it back. On a phone it slides in over the page.

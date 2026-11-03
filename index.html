@@ -318,26 +318,7 @@
 
   /* ---------- file tree ---------- */
   .tree { flex: 1; min-height: 0; display: flex; flex-direction: column; font-size: 13.5px; }
-  .tree-head { position: relative; display: flex; align-items: center; gap: 8px; padding: 10px 6px 0 12px; font-size: 13px; color: var(--muted); }
-  .more-btn { border: 0; padding: 3px 6px; }
-  .more-btn[aria-expanded="true"] { background: var(--side-hi); color: var(--ink); }
-  /* the … menu: change folder, recent folders, new document, single file */
-  .more-list {
-    position: absolute;
-    z-index: 30;
-    top: calc(100% + 2px);
-    left: 8px;
-    right: 8px;
-    padding: 6px;
-    border: 1px solid var(--rule);
-    border-radius: 10px;
-    background: var(--surface);
-    box-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
-  }
-  .sub-btn { display: flex; align-items: center; }
-  .sub-btn span { flex: 1; }
-  .sub-btn .chevron { flex: none; color: var(--muted); }
-  .more-list .recent-list { top: -7px; left: calc(100% + 8px); }
+  .tree-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px 0; font-size: 13px; color: var(--muted); }
   .tree-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
   .tree-filter {
     margin: 8px 8px 6px;
@@ -605,8 +586,6 @@
     <div class="tree-head">
       <span class="tree-name" id="tree-name"></span>
       <span class="tree-count" id="tree-count"></span>
-      <button type="button" class="icon-btn more-btn" id="more-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="more-list" title="Change folder, new document, single file" aria-label="More"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="currentColor"><circle cx="3.5" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="12.5" cy="8" r="1.4"/></svg></button>
-      <div class="more-list" id="more-list" role="menu" aria-label="More" hidden></div>
     </div>
     <input type="search" class="tree-filter" id="tree-filter" placeholder="Filter files (Ctrl+K)" aria-label="Filter files" autocomplete="off" spellcheck="false">
     <div class="tree-list" id="tree-list"></div>
@@ -1279,11 +1258,11 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   function updateTree() {
     tree.hidden = !folder;
     var hint = document.getElementById('side-empty');
-    document.getElementById('menu').hidden = !!folder;
+    document.querySelector('#folder-btn span').textContent = folder ? 'Change working folder…' : 'Choose a working folder…';
     hint.hidden = !!folder || !aside;
     if (aside) hint.textContent = 'The open file is not in “' + aside.folder.name + '”. The button above the document goes back to it.';
-    if (!folder) showMore(false);
-    else setStarting(false);
+    if (folder) setStarting(false);
+    if (recentFolderShown !== (folder && folder.handle)) { recentFolderShown = folder && folder.handle; updateRecentUI(); }
     if (!folder) { treeFor = null; treePath = undefined; return; }
     if (treeFor !== folder) {
       /* a rebuilt copy of the same folder (after "Save as") keeps its state */
@@ -1532,6 +1511,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
      not their contents). Opening one again lets Chrome and Edge offer
      "Allow on every visit", after which it opens without asking. */
   var MAX_RECENT = 10;
+  var recentFolderShown = null; // the open folder the Recent list was last built for
   var recent = [];
   var recentRow = document.getElementById('recent-row');
   var recentBtn = document.getElementById('recent-btn');
@@ -1557,10 +1537,13 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   }
 
   function updateRecentUI() {
-    recentRow.hidden = !recent.length;
+    var current = folder && folder.handle; // the open folder is not listed
+    var shown = recent.filter(function (h) { return h !== current; });
+    recentRow.hidden = !shown.length;
     recentList.textContent = '';
     var seen = {};
     recent.forEach(function (handle, i) {
+      if (handle === current) return;
       var item = document.createElement('button');
       seen[handle.name] = (seen[handle.name] || 0) + 1;
       item.type = 'button';
@@ -1571,7 +1554,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       item.title = 'Open “' + handle.name + '”';
       recentList.appendChild(item);
     });
-    if (!recent.length) showRecent(false);
+    if (!shown.length) showRecent(false);
     updateStart();
   }
 
@@ -2254,112 +2237,6 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   document.getElementById('start-file').addEventListener('click', function () { fileInput.click(); });
   document.getElementById('start-new').addEventListener('click', newDocument);
   document.getElementById('start-sample').addEventListener('click', showSample);
-
-  /* ---------- the … menu next to the folder name ---------- */
-  var moreBtn = document.getElementById('more-btn');
-  var moreList = document.getElementById('more-list');
-
-  function moreItem(label, run) {
-    var b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'recent-item';
-    b.setAttribute('role', 'menuitem');
-    b.textContent = label;
-    b.addEventListener('click', function () { showMore(false); run(); });
-    moreList.appendChild(b);
-  }
-
-  function showMore(open) {
-    if (open) {
-      moreList.textContent = '';
-      if (canPickFolder) moreItem('Change working folder…', pickFolder);
-      var others = recent.filter(function (h) { return !folder || h !== folder.handle; });
-      if (others.length) moreList.appendChild(recentSubmenu(others));
-      moreItem('New document', newDocument);
-      moreItem('Open a single file', function () { fileInput.click(); });
-    }
-    moreList.hidden = !open;
-    moreBtn.setAttribute('aria-expanded', String(open));
-  }
-  /* "Recent ›" in the … menu: the folders open in a second list beside it,
-     on hover with a mouse, or with a click, a tap or → . */
-  function recentSubmenu(handles) {
-    var wrap = document.createElement('div');
-    wrap.className = 'recent-wrap';
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'recent-item sub-btn';
-    btn.setAttribute('role', 'menuitem');
-    btn.setAttribute('aria-haspopup', 'menu');
-    btn.setAttribute('aria-expanded', 'false');
-    btn.innerHTML = '<span>Recent</span>' + document.querySelector('#recent-btn .chevron').outerHTML;
-    var list = document.createElement('div');
-    list.className = 'recent-list';
-    list.setAttribute('role', 'menu');
-    list.hidden = true;
-    handles.forEach(function (h) {
-      var item = document.createElement('button');
-      item.type = 'button';
-      item.className = 'recent-item';
-      item.setAttribute('role', 'menuitem');
-      item.textContent = h.name;
-      item.title = 'Open “' + h.name + '”';
-      item.addEventListener('click', function () { showMore(false); openRecent(h); });
-      list.appendChild(item);
-    });
-    var timer = 0;
-    function show(open) {
-      clearTimeout(timer);
-      list.hidden = !open;
-      btn.setAttribute('aria-expanded', String(open));
-    }
-    wrap.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') show(true); });
-    wrap.addEventListener('pointerleave', function (e) {
-      if (e.pointerType === 'mouse') timer = setTimeout(function () { show(false); }, 300);
-    });
-    btn.addEventListener('click', function (e) { show(e.pointerType === 'mouse' ? true : list.hidden); });
-    btn.addEventListener('keydown', function (e) {
-      if (e.key === 'ArrowRight' || e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        e.stopPropagation();
-        show(true);
-        list.querySelector('.recent-item').focus();
-      }
-    });
-    list.addEventListener('keydown', function (e) {
-      var items = Array.from(list.children), at = items.indexOf(document.activeElement);
-      e.stopPropagation();
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        items[e.key === 'ArrowDown' ? Math.min(items.length - 1, at + 1) : Math.max(0, at - 1)].focus();
-      } else if (e.key === 'ArrowLeft' || e.key === 'Escape') {
-        e.preventDefault();
-        show(false);
-        btn.focus();
-      }
-    });
-    wrap.appendChild(btn);
-    wrap.appendChild(list);
-    return wrap;
-  }
-
-  moreBtn.addEventListener('click', function () {
-    showMore(moreList.hidden);
-    if (!moreList.hidden) moreList.querySelector('.recent-item').focus();
-  });
-  moreList.addEventListener('keydown', function (e) {
-    var items = Array.from(moreList.querySelectorAll(':scope > .recent-item, :scope > .recent-wrap > .recent-item')), at = items.indexOf(document.activeElement);
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      items[e.key === 'ArrowDown' ? Math.min(items.length - 1, at + 1) : Math.max(0, at - 1)].focus();
-    } else if (e.key === 'Escape') {
-      showMore(false);
-      moreBtn.focus();
-    }
-  });
-  document.addEventListener('click', function (e) {
-    if (!moreList.hidden && !moreList.contains(e.target) && !moreBtn.contains(e.target)) showMore(false);
-  });
 
   undoBtn.addEventListener('click', function () {
     if (!cleared) return;

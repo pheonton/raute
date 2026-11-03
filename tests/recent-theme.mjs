@@ -29,37 +29,21 @@ await is('no recent list before any folder', `document.getElementById('recent-ro
 await evaluate(`__pickDir(__mkDir('alpha', { id: 'A' }))`);
 await evaluate(`__pickDir(__mkDir('beta', { id: 'B' }))`);
 await evaluate(`__pickDir(__mkDir('alpha', { id: 'A' }))`);
-await is('reopening moves to the top, no duplicate', `JSON.stringify(__recent()) === '["alpha","beta"]'`);
+await is('reopening moves to the top, no duplicate (the open folder is not listed)', `__folderName() === 'alpha/' && JSON.stringify(__recent()) === '["beta"]'`);
 await evaluate(`(async () => { for (let i = 1; i <= 11; i++) await __pickDir(__mkDir('f' + i)); })()`);
-await is('list keeps the last 10', `__recent().length === 10 && __recent()[0] === 'f11'`);
+await is('list keeps the last 10 (9 shown besides the open one)', `__folderName() === 'f11/' && __recent().length === 9 && __recent()[0] === 'f10'`);
 await evaluate(`(async () => { await __pickDir(__mkDir('docs')); await __pickDir(__mkDir('docs')); })()`);
-await is('same names are told apart', `__recent()[0] === 'docs' && __recent()[1] === 'docs (2)'`);
+await is('a second folder with the same name is listed', `__folderName() === 'docs/' && __recent()[0] === 'docs' && __recent()[1] === 'f11'`);
 
-// With a folder open the sidebar shows the tree, and Recent lives in the … menu.
-await is('with a folder open the menu is hidden', `!document.getElementById('menu').checkVisibility() && document.getElementById('more-btn').checkVisibility()`);
-await evaluate(`document.getElementById('more-btn').click(); 1`);
-await is('… lists change folder, Recent ›, new document, single file',
-  `(() => { const l = document.getElementById('more-list'); const top = [...l.querySelectorAll(':scope > .recent-item, :scope > .recent-wrap > .recent-item')].map((b) => b.textContent);
-    return !l.hidden && JSON.stringify(top) === JSON.stringify(['Change working folder…', 'Recent', 'New document', 'Open a single file'])
-      && document.activeElement === l.querySelector('.recent-item'); })()`);
-await evaluate(`document.querySelector('#more-list .recent-wrap').dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' })); 1`);
-await is('hovering Recent opens the folders beside it', `(() => { const sub = document.querySelector('#more-list .recent-wrap .recent-list');
-  const names = [...sub.children].map((b) => b.textContent); return !sub.hidden && names.length === __recent().length - 1 && names[0] === 'docs' && names[1] === 'f11' && getComputedStyle(sub).position === 'absolute'; })()`);
-await evaluate(`document.querySelector('#more-list .recent-wrap').dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'mouse' })); 1`);
-await sleep(450);
-await is('leaving closes the folders again', `document.querySelector('#more-list .recent-wrap .recent-list').hidden`);
-await evaluate(`document.querySelector('#more-list .sub-btn').focus(); document.querySelector('#more-list .sub-btn').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); 1`);
-await is('→ opens them and focuses the first folder', `document.activeElement === document.querySelector('#more-list .recent-wrap .recent-list .recent-item')`);
-await evaluate(`document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })); 1`);
-await is('← closes them and returns to Recent', `document.querySelector('#more-list .recent-wrap .recent-list').hidden && document.activeElement === document.querySelector('#more-list .sub-btn')`);
-await evaluate(`document.getElementById('more-list').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 1`);
-await is('Esc closes … and returns to the button', `document.getElementById('more-list').hidden && document.activeElement === document.getElementById('more-btn')`);
+// With a folder open the four lines stay; the folder line says Change.
+await is('with a folder open the menu stays, the folder line says Change', `document.getElementById('menu').checkVisibility()
+  && document.querySelector('#folder-btn span').textContent === 'Change working folder…' && !document.getElementById('more-btn')`);
 
-// A file from elsewhere sets the folder aside: the menu with Recent is back.
+// A file from elsewhere sets the folder aside.
 await evaluate(`window.showOpenFilePicker = async () => [{ kind: 'file', name: 'outside.md', getFile: async () => new File(['# Outside'], 'outside.md') }];
   document.getElementById('file-input').click(); 1`);
 await sleep(400);
-await is('a file from elsewhere brings the menu back', `document.getElementById('menu').checkVisibility() && document.getElementById('recent-row').checkVisibility()`);
+await is('a file from elsewhere: the folder line says Choose again, Recent is there', `document.querySelector('#folder-btn span').textContent === 'Choose a working folder…' && document.getElementById('recent-row').checkVisibility()`);
 
 // The Recent list opens on hover, closes after leaving, and works with the keyboard.
 const list = `document.getElementById('recent-list')`;
