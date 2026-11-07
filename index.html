@@ -104,9 +104,10 @@
     border-right: 1px solid var(--rule);
     background: var(--side);
   }
-  .side-top { display: flex; flex-direction: column; gap: 8px; padding: 12px 12px 4px; }
+  .side-top { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 4px; }
   .side-row { display: flex; align-items: center; gap: 8px; }
-  .side-top > .side-row:first-child { justify-content: flex-end; }
+  /* the buttons' row lines up with the line above the document */
+  .side-top > .side-row:first-child { justify-content: flex-end; height: 31px; margin: 0 -6px 0 0; } /* 32px bar minus its border */
   .side-top > .side-row:first-child button { border-color: transparent; }
   .side-top > .side-row:first-child button:hover { background: var(--side-hi); color: var(--ink); }
   /* New, Open file, Open folder, Recent: one line each, icon and text */
@@ -171,6 +172,7 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 6px 16px;
+    min-height: 32px;
     padding: 0 16px;
     border-bottom: 1px solid var(--rule);
     background: var(--surface);
