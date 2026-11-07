@@ -134,7 +134,7 @@ await is('back to Auto clears the choice', `localStorage.getItem('raute-theme') 
 
 // ---------- version ----------
 const fileVersion = (await (await fetch(base + 'version.js')).text()).match(/RAUTE_VERSION\s*=\s*'([^']+)'/)[1];
-await is('the sidebar shows the version from version.js', `document.getElementById('app-version').textContent === 'Raute ${fileVersion}'`);
+await is('the sidebar shows the version from version.js', `document.getElementById('app-version').textContent === '${fileVersion}' && document.querySelector('.side-brand').textContent.trim() === '#Raute ${fileVersion}'`);
 await sleep(1500);
 await is('the offline copy uses the same version', `caches.keys().then((k) => k.includes('raute-${fileVersion}'))`);
 await evaluate(`localStorage.setItem('raute-version', 'v1'); location.reload(); 1`);
