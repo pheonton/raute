@@ -37,6 +37,11 @@ not, a folder set aside) and, on the right, the **Source / Split / Preview**
 switch. When pictures in the document are not shown, a note in a line of its
 own below says why and offers to open the right folder.
 
+In the installed app, Raute can draw its own title bar: Edge and Chrome show a
+small arrow in the title bar that hides the normal one. Raute's name row and
+the file line then sit in the title bar, next to the window buttons, and the
+empty parts of them move the window.
+
 ## Light and dark
 
 The theme button in the sidebar switches between **Auto** (follows the

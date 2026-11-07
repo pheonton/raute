@@ -515,6 +515,27 @@
     .side { position: fixed; z-index: 20; left: 0; top: 0; bottom: 0; width: min(85vw, 320px); box-shadow: 0 0 24px rgb(0 0 0 / 0.3); }
   }
 
+  /* ---------- own title bar (installed app, Window Controls Overlay) ----------
+     The window's title bar gives way to Raute's top rows: the name row over the
+     sidebar and the file line over the document. The window buttons sit where
+     the browser says (titlebar-area); empty parts of both rows drag the window. */
+  @media (display-mode: window-controls-overlay) {
+    .side-top { padding-top: 0; }
+    .side-top > .side-row:first-child { height: env(titlebar-area-height, 33px); padding-left: env(titlebar-area-x, 0px); }
+    .bar {
+      min-height: env(titlebar-area-height, 33px);
+      /* room for the window buttons on the right */
+      padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 8px);
+    }
+    /* sidebar hidden: the file line starts after window buttons on the left, if any */
+    .app.side-closed .bar { padding-left: max(16px, calc(env(titlebar-area-x, 0px) + 8px)); }
+    .side-top > .side-row:first-child, .bar { -webkit-app-region: drag; app-region: drag; }
+    .side-row button, .bar button, .bar .seg, .bar input { -webkit-app-region: no-drag; app-region: no-drag; }
+    /* on the start screen the empty file line still holds the window buttons and drags the window */
+    .main-col.starting > .bar { display: flex !important; }
+    .main-col.starting > .bar > :not(#tree-btn) { visibility: hidden; }
+  }
+
   /* ---------- printing: only the rendered document, on white ---------- */
   @page { margin: 15mm; }
   @media print {
@@ -1250,6 +1271,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   function setSideOpen(open) {
     sideOpen = open;
     side.hidden = !open;
+    document.querySelector('.app').classList.toggle('side-closed', !open);
     treeBtn.hidden = open;
     treeBtn.setAttribute('aria-expanded', String(open));
   }
