@@ -122,4 +122,6 @@ await is('no README at the top: no file opens, the page says to choose one',
 await is('the sidebar menu has no "Open a single file" line',
   `![...document.querySelectorAll('#menu .menu-item')].some((e) => e.textContent.includes('single file'))`);
 
+await is('the three buttons at the top have the same colour', `new Set(['doc-font-btn', 'theme-btn', 'side-hide'].map((id) => getComputedStyle(document.getElementById(id)).color)).size === 1`);
+
 c.finish(ws);
