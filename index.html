@@ -246,6 +246,9 @@
   .asset:has(#asset-note:empty) { display: none; }
   #asset-note { flex: 0 1 auto; min-width: 0; padding: 6px 0; } /* the button follows right after the message */
   .bar .seg { flex: none; align-self: stretch; margin-left: auto; border-block: 0; } /* fills the line's full height */
+  .picture-btn { flex: none; align-self: stretch; margin-left: auto; padding: 0 11px; border: 0; border-left: 1px solid var(--rule); border-radius: 0; color: var(--muted); white-space: nowrap; }
+  .picture-btn:hover { color: var(--ink); background: var(--code-bg); }
+  .picture-btn:not([hidden]) + .seg { margin-left: 0; }
   .bar .icon-btn { margin-block: 4px; }
   .asset button { flex: none; border: 0; border-radius: 0; padding: 0 16px; font-family: var(--font-mono); font-size: 12px; }
   /* Recent: a list that opens on hover (or click / keys) beside the sidebar */
@@ -650,6 +653,7 @@
   </div>
   <button type="button" class="aside-btn" id="aside-btn" hidden></button>
   <div class="save" id="save-box"><span id="save-note"></span> <button type="button" id="save-btn" hidden>Save</button> <button type="button" id="reload-btn" hidden>Reload</button></div>
+  <button type="button" class="picture-btn" id="picture-btn" hidden>Insert picture…</button>
   <div class="seg" role="group" aria-label="View">
     <button type="button" id="view-source" data-view="source" aria-pressed="false">Source</button>
     <button type="button" id="view-split" data-view="split" aria-pressed="true">Split</button>
@@ -757,6 +761,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   var asideBtn = document.getElementById('aside-btn');
   var viewButtons = document.querySelectorAll('.seg button');
   var themeBtn = document.getElementById('theme-btn');
+  var pictureBtn = document.getElementById('picture-btn');
 
   var SAMPLE_NAME = 'sample.md (example)';
   /* dirty: edits not yet written to the file. mtime: the file's date when last read or written. */
@@ -1843,6 +1848,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   function setView(view) {
     state.view = view;
     panes.dataset.view = view;
+    pictureBtn.hidden = view === 'preview' || typeof window.showOpenFilePicker !== 'function';
     viewButtons.forEach(function (b) {
       b.setAttribute('aria-pressed', String(b.dataset.view === view));
     });
@@ -2229,6 +2235,99 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     fileInput.value = '';
   });
 
+  /* ---------- adding pictures ----------
+     Pasted, dropped or chosen pictures are saved in _assets/ next to the open
+     document, and a link is inserted at the cursor. Dropped and chosen files
+     keep their names; a pasted screenshot is named after the document. */
+  var PICTURE = /\.(?:png|jpe?g|gif|webp|avif|bmp|svg)$/i;
+  var PICTURE_TYPES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'image/avif': 'avif', 'image/bmp': 'bmp', 'image/svg+xml': 'svg' };
+  var ASSETS_DIR = '_assets';
+
+  function isPicture(file) { return PICTURE.test(file.name) || !!PICTURE_TYPES[file.type]; }
+  function safeFileName(name) { return name.replace(/[\\/:*?"<>|#%\u0000-\u001f]/g, '-'); }
+
+  async function fileExists(dir, name) {
+    try { await dir.getFileHandle(name); return true; }
+    catch (e) { if (e && e.name === 'NotFoundError') return false; throw e; }
+  }
+
+  /* The first free name: photo.png, photo-2.png … or, for a screenshot, Doc-1.png, Doc-2.png … */
+  async function freeName(dir, base, ext, numbered) {
+    var n = 1, name = numbered ? base + '-1.' + ext : base + '.' + ext;
+    while (await fileExists(dir, name)) name = base + '-' + (++n) + '.' + ext;
+    return name;
+  }
+
+  async function mayWriteFolder(handle) {
+    var opts = { mode: 'readwrite' };
+    try {
+      if (await handle.queryPermission(opts) !== 'granted') await handle.requestPermission(opts);
+      return (await handle.queryPermission(opts)) === 'granted';
+    } catch (e) { return false; } // the browser wants a fresh click first
+  }
+
+  async function addPictures(files, pasted) {
+    if (!files.length) return;
+    if (!folder || !folder.handle) { setAssetNote('Pictures are saved next to the document, so it has to be in the working folder.'); return; }
+    if (!state.path) { setAssetNote('Save the document in the working folder first, so the picture has a place next to it.', { label: 'Save as…', run: saveNow, attention: true }); return; }
+    var home = folder, docPath = state.path;
+    if (!(await mayWriteFolder(home.handle))) {
+      setAssetNote('Raute needs your permission to save pictures in “' + home.name + '”.', { label: 'Allow', run: function () { addPictures(files, pasted); }, attention: true });
+      return;
+    }
+    var links = [];
+    try {
+      var parts = docPath.split('/').slice(0, -1), dir = home.handle;
+      for (var i = 0; i < parts.length; i++) dir = await dir.getDirectoryHandle(parts[i]);
+      var assets = await dir.getDirectoryHandle(ASSETS_DIR, { create: true });
+      var docBase = safeFileName(docPath.split('/').pop().replace(/\.[^.]*$/, ''));
+      for (var f = 0; f < files.length; f++) {
+        var file = files[f], clean = safeFileName(file.name), dot = clean.lastIndexOf('.');
+        var named = !pasted && dot > 0 && PICTURE.test(clean);
+        var name = await freeName(assets, named ? clean.slice(0, dot) : docBase, named ? clean.slice(dot + 1) : (PICTURE_TYPES[file.type] || 'png'), !named);
+        var handle = await assets.getFileHandle(name, { create: true });
+        var out = await handle.createWritable();
+        await out.write(file);
+        await out.close();
+        var path = parts.concat(ASSETS_DIR, name).join('/');
+        home.entries.set(path, { handle: handle });
+        home.lower.set(path.toLowerCase(), path);
+        links.push('![](<' + ASSETS_DIR + '/' + name + '>)');
+      }
+    } catch (e) {
+      setAssetNote('Could not save the picture in “' + home.name + '”.');
+      return;
+    }
+    if (folder !== home || state.path !== docPath) return; // another document was opened meanwhile
+    var at = source.selectionStart;
+    var before = at > 0 && source.value.charAt(at - 1) !== '\n' ? '\n\n' : '';
+    source.setRangeText(before + links.join('\n\n'), at, source.selectionEnd, 'end');
+    source.dispatchEvent(new Event('input'));
+    source.focus();
+    setNotice(links.length === 1 ? 'Saved the picture in ' + ASSETS_DIR + '/.' : 'Saved ' + links.length + ' pictures in ' + ASSETS_DIR + '/.', false);
+  }
+
+  source.addEventListener('paste', function (e) {
+    var data = e.clipboardData;
+    /* text wins: copying from Word or a web page also puts a picture of it on the clipboard */
+    if (!data || data.getData('text/plain')) return;
+    var files = Array.prototype.filter.call(data.files, isPicture);
+    if (!files.length) return;
+    e.preventDefault();
+    addPictures(files, true);
+  });
+
+  pictureBtn.addEventListener('click', function () {
+    var options = { multiple: true, types: [{ description: 'Pictures', accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.bmp', '.svg'] } }] };
+    if (folder && folder.handle) options.startIn = folder.handle;
+    else options.id = 'raute-file';
+    window.showOpenFilePicker(options).then(function (handles) {
+      return Promise.all(handles.map(function (h) { return h.getFile(); }));
+    }).then(function (files) {
+      return addPictures(files.filter(isPicture), false);
+    }).catch(function () { /* cancelled */ });
+  });
+
   /* New: an empty, untitled document. Undo brings back the one before. */
   function newDocument() {
     var blank = state.text === '' && !state.path && !lastFile;
@@ -2340,6 +2439,12 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     e.preventDefault();
     dragDepth = 0;
     drop.hidden = true;
+    var all = Array.prototype.slice.call(e.dataTransfer.files);
+    if (all.length && all.every(isPicture)) {
+      if (state.view === 'preview') setAssetNote('Switch to Split or Source to add pictures to the document.');
+      else addPictures(all, false);
+      return;
+    }
     var dropped = e.dataTransfer.files[0];
     var item = e.dataTransfer.items && e.dataTransfer.items[0];
     if (item && typeof item.getAsFileSystemHandle === 'function') {

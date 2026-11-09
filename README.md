@@ -70,6 +70,16 @@ after you stop typing. The line above the document shows whether changes are sav
 - Opening another file while changes could not be saved asks first.
 - Firefox and Safari cannot write to files; there **Download** saves a copy.
 
+## Adding pictures
+
+In Split or Source view, paste a picture, drag image files onto the window, or
+use **Insert picture…**. In Chrome and Edge, Raute saves them in `_assets/`
+next to the document and inserts a link at the cursor. Dropped and chosen
+files keep their names; a pasted screenshot is named after the document
+(`Mechanik 10-1.png`), and nothing is overwritten. The browser asks once for
+permission to save in the working folder, and the document has to be saved
+inside that folder.
+
 ## Styles inside a file
 
 A `<style>` block in a Markdown file styles the preview and the printout, for
