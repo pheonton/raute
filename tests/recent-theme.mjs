@@ -118,6 +118,42 @@ await evaluate(`(async () => { await __pickDir(__mkDir('elsewhere3'));
 await sleep(800);
 await is('a folder that still needs permission is only offered', `__folderName() === null && document.getElementById('asset-btn').textContent === 'Open “physik”'`);
 
+// ---------- Save as starts in the working folder ----------
+await evaluate(`(async () => {
+  document.getElementById('new-btn').click();
+  window.__wd = __mkDir('arbeit', { id: 'W' });
+  await __pickDir(__wd);
+  document.getElementById('new-btn').click();
+  const t = document.getElementById('source'); t.value = '# Neu'; t.dispatchEvent(new Event('input'));
+  window.showSaveFilePicker = (o) => { window.__saveOpts = o; return Promise.reject(new DOMException('x', 'AbortError')); };
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true }));
+})()`);
+await sleep(300);
+await is('Save as starts in the working folder', `__saveOpts.startIn === __wd && !__saveOpts.id && __saveOpts.suggestedName === 'Untitled.md'`);
+await evaluate(`(() => {
+  window.__neu = { kind: 'file', name: 'neu.md', text: '', getFile: async () => new File([__neu.text], 'neu.md', { lastModified: 5 }),
+    queryPermission: async () => 'granted', requestPermission: async () => 'granted',
+    createWritable: async () => { let b = ''; return { write: async (t) => { b += t; }, close: async () => { __neu.text = b; } }; } };
+  __wd.resolve = async (h) => h === __neu ? ['neu.md'] : null;
+  window.showSaveFilePicker = async () => __neu;
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true }));
+})(); 1`);
+await sleep(500);
+await is('a file saved there appears in the tree', `__neu.text === '# Neu' && (document.querySelector('#tree-list [aria-current="true"]') || { dataset: {} }).dataset.path === 'neu.md'`);
+await evaluate(`(async () => {
+  window.showOpenFilePicker = async () => [{ kind: 'file', name: 'draussen.md', getFile: async () => new File(['# D'], 'draussen.md') }];
+  document.getElementById('file-input').click();
+  await new Promise((r) => setTimeout(r, 400));
+  document.getElementById('new-btn').click();
+  const t = document.getElementById('source'); t.value = '# Zwei'; t.dispatchEvent(new Event('input'));
+  window.__neu2 = { ...__neu, name: 'zwei.md', getFile: async () => new File(['# Zwei'], 'zwei.md', { lastModified: 6 }) };
+  __wd.resolve = async (h) => h === __neu2 ? ['zwei.md'] : null;
+  window.showSaveFilePicker = async (o) => { window.__saveOpts = o; return __neu2; };
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true }));
+})()`);
+await sleep(600);
+await is('with the folder set aside it still starts there, and saving into it brings it back', `__saveOpts.startIn === __wd && __folderName() === 'arbeit/' && document.getElementById('aside-btn').hidden`);
+
 // ---------- theme (system is dark) ----------
 const DARK = 'rgb(16, 20, 26)', LIGHT = 'rgb(238, 241, 244)';
 const bg = `getComputedStyle(document.body).backgroundColor`;
@@ -140,5 +176,15 @@ await is('the offline copy uses the same version', `caches.keys().then((k) => k.
 await evaluate(`localStorage.setItem('raute-version', 'v1'); location.reload(); 1`);
 await sleep(1200);
 await is('after an update the status line says so once', `document.getElementById('notice').textContent === 'Updated to ${fileVersion}.'`);
+
+// Without a working folder, Save as uses the browser's remembered place.
+await evaluate(`(() => {
+  document.getElementById('new-btn').click();
+  const t = document.getElementById('source'); t.value = '# Ohne'; t.dispatchEvent(new Event('input'));
+  window.showSaveFilePicker = (o) => { window.__saveOpts = o; return Promise.reject(new DOMException('x', 'AbortError')); };
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true }));
+})(); 1`);
+await sleep(300);
+await is('without a working folder Save as uses the remembered place', `__saveOpts.id === 'raute-file' && !__saveOpts.startIn`);
 
 c.finish(ws);

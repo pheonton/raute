@@ -63,8 +63,8 @@ to that file, and from then on every change is saved to the file a moment
 after you stop typing. The line above the document shows whether changes are saved.
 
 - Ctrl+S (Cmd+S on a Mac) saves right away. Text that is not a file yet
-  (typed or pasted) is saved with a "Save as" dialog, and saves itself from
-  then on.
+  (typed or pasted) is saved with a "Save as" dialog, which starts in the
+  working folder, and saves itself from then on.
 - If another program changed the file since Raute read it, Raute does not
   overwrite it and offers **Overwrite** or **Reload** instead.
 - Opening another file while changes could not be saved asks first.

@@ -2038,16 +2038,25 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   /* Text that is not a file yet: pick where to save it. Afterwards it saves like any opened file. */
   async function saveAs() {
     if (!canWrite) { download(); return; }
+    /* the dialog starts in the working folder, if there is one */
+    var home = folder || (aside && aside.folder);
+    var options = home && home.handle ? { startIn: home.handle } : { id: 'raute-file' };
+    options.suggestedName = suggestedName();
+    options.types = MD_TYPES;
     var handle;
     try {
-      handle = await window.showSaveFilePicker({ id: 'raute-file', suggestedName: suggestedName(), types: MD_TYPES });
+      handle = await window.showSaveFilePicker(options);
     } catch (e) { return; /* cancelled */ }
     var path = null;
-    if (folder && folder.handle && typeof folder.handle.resolve === 'function') {
+    if (home && home.handle && typeof home.handle.resolve === 'function') {
       try {
-        var parts = await folder.handle.resolve(handle);
+        var parts = await home.handle.resolve(handle);
         if (parts && parts.length) path = parts.join('/');
       } catch (e) { /* saved outside the folder */ }
+    }
+    if (path && aside) { /* saved into the folder that was set aside: back to it */
+      folder = aside.folder;
+      aside = null;
     }
     if (path) {
       folder.entries.set(path, { handle: handle });
