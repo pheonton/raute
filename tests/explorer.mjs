@@ -119,4 +119,7 @@ await is('no README at the top: no file opens, the page says to choose one',
   `(() => { const t = __tree(); return t.shown && t.current === null && t.heading === null && document.getElementById('source').value === ''
     && document.getElementById('empty').textContent === '“Schule” is open. Choose a file from the list, or press Ctrl+K to search.'; })()`);
 
+await is('the sidebar menu has no "Open a single file" line',
+  `![...document.querySelectorAll('#menu .menu-item')].some((e) => e.textContent.includes('single file'))`);
+
 c.finish(ws);
