@@ -141,6 +141,15 @@
   .icon-btn svg { display: block; margin-block: 0.75px; }
   .main-col { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 
+  /* ---------- dialog: a question that needs an answer before going on ---------- */
+  .ask { width: min(400px, calc(100vw - 32px)); padding: 20px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); color: var(--ink); box-shadow: 0 12px 40px rgb(0 0 0 / 0.25); }
+  .ask::backdrop { background: rgb(0 0 0 / 0.35); }
+  .ask-title { margin: 0 0 6px; font-family: var(--font-display); font-size: 18px; letter-spacing: -0.01em; }
+  .ask-text { margin: 0 0 18px; color: var(--muted); }
+  .ask-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .ask-ok { border-color: var(--accent); background: var(--accent); color: var(--surface); font-weight: 700; }
+  .ask-ok:hover { border-color: var(--accent); filter: brightness(1.08); }
+
   /* ---------- start screen: pick a working folder ---------- */
   .main-col.starting > :not(.start) { display: none !important; }
   .start { flex: 1; min-height: 0; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 32px 16px; background: var(--surface); }
@@ -676,6 +685,15 @@
 </footer>
 </div>
 </div>
+
+<dialog class="ask" id="ask" aria-labelledby="ask-title">
+  <h2 class="ask-title" id="ask-title"></h2>
+  <p class="ask-text" id="ask-text"></p>
+  <div class="ask-actions">
+    <button type="button" id="ask-cancel">Cancel</button>
+    <button type="button" class="ask-ok" id="ask-ok"></button>
+  </div>
+</dialog>
 
 <div class="drop" id="drop" hidden>Drop a file or folder to open it</div>
 
@@ -2266,10 +2284,44 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     } catch (e) { return false; } // the browser wants a fresh click first
   }
 
+  var askEl = document.getElementById('ask');
+  var askRun = null;
+  function ask(title, text, label, run) {
+    document.getElementById('ask-title').textContent = title;
+    document.getElementById('ask-text').textContent = text;
+    document.getElementById('ask-ok').textContent = label;
+    askRun = run;
+    if (!askEl.open) askEl.showModal();
+    document.getElementById('ask-ok').focus();
+  }
+  document.getElementById('ask-ok').addEventListener('click', function () {
+    var run = askRun;
+    askRun = null;
+    askEl.close();
+    if (run) run();
+  });
+  document.getElementById('ask-cancel').addEventListener('click', function () { askRun = null; askEl.close(); });
+
+  /* Pictures go next to the document, so it has to be saved in the working
+     folder. If it is not, say so and carry on with `resume` after saving. */
+  function readyForPictures(resume) {
+    if (!folder || !folder.handle) {
+      ask('Not in a working folder', 'Pictures are saved next to the document, so it has to be in a working folder.', 'Choose a working folder…', pickFolder);
+      return false;
+    }
+    if (state.path) return true;
+    ask('This document isn’t saved yet', 'Pictures are saved next to the document, so it needs a place first.', 'Save as…', function () {
+      saveAs().then(function () {
+        if (state.path) resume();
+        else if (lastFile) setAssetNote('Saved outside the working folder, so the picture has no place next to it.');
+      });
+    });
+    return false;
+  }
+
   async function addPictures(files, pasted) {
     if (!files.length) return;
-    if (!folder || !folder.handle) { setAssetNote('Pictures are saved next to the document, so it has to be in the working folder.'); return; }
-    if (!state.path) { setAssetNote('Save the document in the working folder first, so the picture has a place next to it.', { label: 'Save as…', run: saveNow, attention: true }); return; }
+    if (!readyForPictures(function () { addPictures(files, pasted); })) return;
     var home = folder, docPath = state.path;
     if (!(await mayWriteFolder(home.handle))) {
       setAssetNote('Raute needs your permission to save pictures in “' + home.name + '”.', { label: 'Allow', run: function () { addPictures(files, pasted); }, attention: true });
@@ -2318,6 +2370,14 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   });
 
   pictureBtn.addEventListener('click', function () {
+    if (!readyForPictures(function () {
+      /* the file dialog needs a fresh click after the Save dialog */
+      ask('Document saved', 'Now choose the picture to insert.', 'Choose picture…', choosePictures);
+    })) return;
+    choosePictures();
+  });
+
+  function choosePictures() {
     var options = { multiple: true, types: [{ description: 'Pictures', accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.bmp', '.svg'] } }] };
     if (folder && folder.handle) options.startIn = folder.handle;
     else options.id = 'raute-file';
@@ -2326,7 +2386,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     }).then(function (files) {
       return addPictures(files.filter(isPicture), false);
     }).catch(function () { /* cancelled */ });
-  });
+  }
 
   /* New: an empty, untitled document. Undo brings back the one before. */
   function newDocument() {

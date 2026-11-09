@@ -85,10 +85,33 @@ await is('no permission yet: nothing saved, the note asks', `__note() === 'Raute
 await evaluate(`__root.deny = false; document.getElementById('asset-btn').click(); 1`);
 await is('Allow saves the waiting picture', `__assets().includes('Mechanik 10-5.png')`);
 
-// Where it cannot work
+// Unsaved document: a dialog, before any file chooser.
+const dlg = `document.getElementById('ask')`;
+const dlgTitle = `document.getElementById('ask-title').textContent`;
+await evaluate(`window.__picked = 0; window.showOpenFilePicker = async () => { __picked++; return [__file('spaet.png', 'X')]; };
+  document.getElementById('new-btn').click(); ${btn}.click(); 1`);
+await is('Insert picture on an unsaved document asks first, no file chooser', `${dlg}.open && ${dlgTitle} === 'This document isn’t saved yet' && document.getElementById('ask-ok').textContent === 'Save as…' && __picked === 0`);
+await evaluate(`document.getElementById('ask-cancel').click(); 1`);
+await is('Cancel closes it and nothing happens', `!${dlg}.open && __picked === 0 && __src() === ''`);
+
+await evaluate(`window.__neu = __file('neu.md', ''); __root.resolve = async (h) => h === __neu ? ['Teil', 'neu.md'] : null; window.showSaveFilePicker = async () => __neu; ${btn}.click(); 1`);
+await sleep(200);
+await evaluate(`document.getElementById('ask-ok').click(); 1`);
+await is('after Save as it asks for the picture with a fresh click', `${dlg}.open && ${dlgTitle} === 'Document saved' && __picked === 0`);
+await evaluate(`document.getElementById('ask-ok').click(); 1`);
+await is('and inserts it', `!${dlg}.open && __picked === 1 && __assets().includes('spaet.png') && __src().endsWith('![](<_assets/spaet.png>)')`);
+
 await evaluate(`document.getElementById('new-btn').click(); __paste([__img('image.png')]); 1`);
-await is('an unsaved document asks to be saved first', `__note() === 'Save the document in the working folder first, so the picture has a place next to it.' && document.getElementById('asset-btn').textContent === 'Save as…'`);
-await evaluate(`document.getElementById('view-preview').click(); __drop([__img('x.png')]); 1`);
-await is('dropping in Preview explains what to do, and does not open the picture as text', `__note() === 'Switch to Split or Source to add pictures to the document.' && __src() === ''`);
+await is('a pasted picture on an unsaved document asks too', `${dlg}.open && ${dlgTitle} === 'This document isn’t saved yet'`);
+await evaluate(`window.__neu3 = __file('drei.md', ''); __root.resolve = async (h) => h === __neu3 ? ['Teil', 'drei.md'] : null; window.showSaveFilePicker = async () => __neu3; document.getElementById('ask-ok').click(); 1`);
+await is('after saving the pasted picture is added by itself', `!${dlg}.open && __assets().includes('drei-1.png') && __src() === '![](<_assets/drei-1.png>)'`);
+
+await evaluate(`window.showOpenFilePicker = async () => [__file('draussen.md', '# D')]; document.getElementById('picture-btn').hidden; 1`);
+await evaluate(`(() => { const dt = new DataTransfer(); dt.items.add(new File(['# D'], 'draussen.md')); const el = document.getElementById('file-input'); Object.defineProperty(el, 'files', { value: dt.files, configurable: true }); el.dispatchEvent(new Event('change')); })(); 1`);
+await sleep(400);
+await evaluate(`document.getElementById('view-split').click(); __paste([__img('image.png')]); 1`);
+await is('a file outside the working folder gets its own question', `${dlg}.open && ${dlgTitle} === 'Not in a working folder' && document.getElementById('ask-ok').textContent === 'Choose a working folder…'`);
+await evaluate(`document.getElementById('ask-cancel').click(); document.getElementById('view-preview').click(); __drop([__img('x.png')]); 1`);
+await is('dropping in Preview explains what to do, and does not open the picture as text', `__note() === 'Switch to Split or Source to add pictures to the document.' && !${dlg}.open`);
 
 c.finish(ws);
