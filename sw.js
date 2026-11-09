@@ -49,7 +49,15 @@ const ASSETS = [
   "fonts/bricolage-grotesque-latin-ext-opsz-normal.woff2",
   "fonts/bricolage-grotesque-latin-opsz-normal.woff2",
   "fonts/jetbrains-mono-latin-ext-wght-normal.woff2",
-  "fonts/jetbrains-mono-latin-wght-normal.woff2"
+  "fonts/jetbrains-mono-latin-wght-normal.woff2",
+  "fonts/source-serif-4-latin-400-normal.woff2",
+  "fonts/source-serif-4-latin-400-italic.woff2",
+  "fonts/source-serif-4-latin-700-normal.woff2",
+  "fonts/source-serif-4-latin-700-italic.woff2",
+  "fonts/source-serif-4-latin-ext-400-normal.woff2",
+  "fonts/source-serif-4-latin-ext-400-italic.woff2",
+  "fonts/source-serif-4-latin-ext-700-normal.woff2",
+  "fonts/source-serif-4-latin-ext-700-italic.woff2"
 ];
 
 self.addEventListener('install', (event) => {

@@ -167,4 +167,33 @@ await sleep(300);
 r = await evaluate(`[...document.querySelectorAll('#output thead')].map((h) => getComputedStyle(h).display)`);
 c.report('empty table header hidden, partly empty header kept', JSON.stringify(r) === JSON.stringify(['none', 'table-header-group']), r);
 
+// 12. Sans / Serif switch: the document only, remembered, and a file's own style wins.
+await type('# Heading\n\n**Text** and `code`.');
+await sleep(200);
+const fonts = `(() => { const f = (e) => getComputedStyle(e).fontFamily.split(',')[0].replaceAll('"', ''); const o = document.getElementById('output');
+  return { p: f(o.querySelector('p')), h1: f(o.querySelector('h1')), code: f(o.querySelector('code')), ui: f(document.getElementById('new-btn')) }; })()`;
+r = await evaluate(fonts);
+c.report('sans by default', r.p === 'Atkinson Hyperlegible' && r.h1 === 'Bricolage Grotesque', r);
+await evaluate(`document.getElementById('doc-font-btn').click(); 1`);
+await sleep(200);
+r = await evaluate(fonts);
+c.report('Serif changes text and headings, not code or the interface', r.p === 'Source Serif 4' && r.h1 === 'Source Serif 4' && r.code === 'JetBrains Mono' && r.ui === 'Atkinson Hyperlegible', r);
+r = await evaluate(`Promise.all([document.fonts.load('400 16px "Source Serif 4"', 'Aä'), document.fonts.load('700 italic 16px "Source Serif 4"', 'Aä')]).then((l) => l.map((x) => x.length))`);
+c.report('the serif font files load', r[0] > 0 && r[1] > 0, r);
+await send('Emulation.setEmulatedMedia', { media: 'print' });
+r = await evaluate(fonts);
+await send('Emulation.setEmulatedMedia', { media: '' });
+c.report('Serif also applies when printing', r.p === 'Source Serif 4', r);
+await type('<style>p { font-family: "Liberation Sans" !important; }</style>\n\nText');
+await sleep(200);
+r = await evaluate(`getComputedStyle(document.querySelector('#output p')).fontFamily.split(',')[0]`);
+c.report('a file\'s own <style> still wins over Serif', r === '"Liberation Sans"', r);
+await evaluate(`location.reload(); 1`);
+await sleep(1200);
+r = await evaluate(`({ attr: document.documentElement.dataset.docFont, title: document.getElementById('doc-font-btn').title })`);
+c.report('the choice is remembered', r.attr === 'serif' && r.title === 'Document font: serif. Click for sans-serif.', r);
+await evaluate(`document.getElementById('doc-font-btn').click(); 1`);
+r = await evaluate(`({ attr: document.documentElement.dataset.docFont || null, stored: localStorage.getItem('raute-doc-font') })`);
+c.report('switching back clears it', r.attr === null && r.stored === null, r);
+
 c.finish(ws);

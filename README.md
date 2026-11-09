@@ -42,6 +42,13 @@ small arrow in the title bar that hides the normal one. Raute's name row and
 the file line then sit in the title bar, next to the window buttons, and the
 empty parts of them move the window.
 
+## Sans and serif
+
+The **Aa** button at the top of the sidebar switches the document between
+sans-serif and serif (Source Serif 4), on screen and in print. The choice is
+remembered. The interface keeps its font, and a `<style>` block in a file
+still wins.
+
 ## Light and dark
 
 The theme button in the sidebar switches between **Auto** (follows the
@@ -160,8 +167,8 @@ features need Edge or Chrome anyway.
 - `manifest.webmanifest`: name, icons and file types for the installed app
 - `vendor/`: marked 12.0.2 (MIT), DOMPurify 3.1.6 (Apache-2.0 or MPL-2.0),
   KaTeX 0.16.9 (MIT) and the font styles
-- `fonts/`: KaTeX fonts plus Atkinson Hyperlegible, Bricolage Grotesque and
-  JetBrains Mono (all under the SIL Open Font License)
+- `fonts/`: KaTeX fonts plus Atkinson Hyperlegible, Bricolage Grotesque,
+  JetBrains Mono and Source Serif 4 (all under the SIL Open Font License)
 - `tests/`: browser tests (not part of the app; see Tests above)
 
 ## Licenses of the bundled parts
@@ -177,3 +184,4 @@ Raute ships copies of other people's work. Their license texts are in
 | Atkinson Hyperlegible | SIL OFL 1.1 | `licenses/AtkinsonHyperlegible-OFL.txt` |
 | Bricolage Grotesque | SIL OFL 1.1 | `licenses/BricolageGrotesque-OFL.txt` |
 | JetBrains Mono | SIL OFL 1.1 | `licenses/JetBrainsMono-OFL.txt` |
+| Source Serif 4 | SIL OFL 1.1 | `licenses/SourceSerif4-OFL.txt` |
