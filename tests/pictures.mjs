@@ -3,6 +3,7 @@
 import { base, connect, sleep, counter } from './cdp.mjs';
 const { ws, send, evaluate } = await connect();
 const c = counter();
+let r;
 
 await send('Emulation.setDeviceMetricsOverride', { width: 1366, height: 700, deviceScaleFactor: 1, mobile: false });
 await send('Page.navigate', { url: base }); await sleep(1200);
@@ -84,6 +85,24 @@ await evaluate(`__root.perm = 'prompt'; __root.deny = true; __paste([__img('imag
 await is('no permission yet: nothing saved, the note asks', `__note() === 'Raute needs your permission to save pictures in “Schule”.' && document.getElementById('asset-btn').textContent === 'Allow' && !__assets().includes('Mechanik 10-5.png')`);
 await evaluate(`__root.deny = false; document.getElementById('asset-btn').click(); 1`);
 await is('Allow saves the waiting picture', `__assets().includes('Mechanik 10-5.png')`);
+
+// A picture changed in another program shows anew.
+await evaluate(`document.getElementById('new-btn').click(); 1`);
+await evaluate(`document.querySelector('.tree-file[data-path="Teil/Mechanik 10.md"]').click(); 1`);
+await sleep(500);
+await evaluate(`document.getElementById('view-split').click(); 1`);
+const firstPic = `document.querySelector('#output img[data-path="Teil/_assets/Mechanik 10-1.png"]')`;
+await sleep(300);
+const before = await evaluate(`${firstPic} && ${firstPic}.src`);
+await evaluate(`(() => { const f = __teil.kids.get('_assets').kids.get('Mechanik 10-1.png'); f.content = 'CHANGED-PICTURE'; f.time = 999; })(); dispatchEvent(new Event('focus')); 1`);
+await sleep(500);
+r = await evaluate(`(async () => { const now = ${firstPic}.src; const text = await (await fetch(now)).text(); let oldGone = false; try { await fetch(${JSON.stringify(before)}); } catch (e) { oldGone = true; } return { changed: now !== ${JSON.stringify(before)}, text, oldGone }; })()`);
+c.report('a picture changed on disk shows anew when coming back to Raute', !!before && r.changed && r.text === 'CHANGED-PICTURE' && r.oldGone, r);
+const fresh = await evaluate(`${firstPic}.src`);
+await evaluate(`{ const t = document.getElementById('source'); t.value += ' '; t.dispatchEvent(new Event('input')); } 1`);
+await sleep(400);
+r = await evaluate(`${firstPic}.src`);
+c.report('typing does not make an unchanged picture reload', r === fresh && r !== before, { fresh, r });
 
 // Unsaved document: a dialog, before any file chooser.
 const dlg = `document.getElementById('ask')`;

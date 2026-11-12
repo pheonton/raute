@@ -1008,7 +1008,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   var folder = null;         // { name, entries: Map(path -> {handle} or {file}), lower, md, handle, capped }
   var aside = null;          // { folder, path }: a folder set aside while a file from elsewhere is open
   var lastFile = null;       // details of a file opened on its own, used to find it inside a folder
-  var blobUrls = new Map();
+  var blobUrls = new Map(); // path -> { url, lastModified, size } of the picture as last read
   var renderSeq = 0;
   var assetAction = null;
   var tpl = document.createElement('template');
@@ -1050,14 +1050,33 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     var entry = folder.entries.get(path);
     return entry.file ? Promise.resolve(entry.file) : entry.handle.getFile();
   }
+  /* A blob: address is a snapshot of the file; once the file changes on disk
+     the browser no longer serves it. So it is reused only while the file's
+     date and size are unchanged, and made anew otherwise. */
   function urlFor(path) {
     var current = folder;
     return entryFile(path).then(function (file) {
       if (folder !== current) throw new Error('folder changed');
-      if (!blobUrls.has(path)) blobUrls.set(path, URL.createObjectURL(file));
-      return blobUrls.get(path);
+      var hit = blobUrls.get(path);
+      if (hit && hit.lastModified === file.lastModified && hit.size === file.size) return hit.url;
+      if (hit) URL.revokeObjectURL(hit.url);
+      var url = URL.createObjectURL(file);
+      blobUrls.set(path, { url: url, lastModified: file.lastModified, size: file.size });
+      return url;
     });
   }
+
+  /* Back in Raute (say, after editing a picture elsewhere): show changed pictures anew. */
+  function refreshPictures() {
+    if (!folder) return;
+    output.querySelectorAll('img[data-path]').forEach(function (img) {
+      urlFor(img.dataset.path).then(function (url) {
+        if (img.src !== url) img.src = url;
+      }).catch(function () { /* gone: the next render says so */ });
+    });
+  }
+  window.addEventListener('focus', refreshPictures);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) refreshPictures(); });
 
   function markMissing(img, ref) {
     var note = document.createElement('span');
@@ -1093,8 +1112,10 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       if (!isRelative(ref)) return;
       var path = folder ? resolvePath(ref) : null;
       if (!path) { markMissing(img, ref); return; }
-      if (blobUrls.has(path)) { img.src = blobUrls.get(path); return; }
-      img.removeAttribute('src');
+      img.dataset.path = path;
+      /* the last address shows at once (no flicker while typing); urlFor checks it is still current */
+      if (blobUrls.has(path)) img.src = blobUrls.get(path).url;
+      else img.removeAttribute('src');
       pending.push({ img: img, path: path, ref: ref });
     });
     root.querySelectorAll('a[href]').forEach(function (a) {
@@ -1506,7 +1527,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
   }
 
   function releaseFolder() {
-    blobUrls.forEach(function (url) { URL.revokeObjectURL(url); });
+    blobUrls.forEach(function (hit) { URL.revokeObjectURL(hit.url); });
     blobUrls.clear();
     folder = null;
   }
@@ -1839,7 +1860,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       output.replaceChildren(frag);
       pending.forEach(function (p) {
         urlFor(p.path).then(function (url) {
-          if (seq === renderSeq) p.img.src = url;
+          if (seq === renderSeq && p.img.src !== url) p.img.src = url;
         }).catch(function () {
           if (seq !== renderSeq) return;
           markMissing(p.img, p.ref);
