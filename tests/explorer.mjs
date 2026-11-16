@@ -124,4 +124,11 @@ await is('the sidebar menu has no "Open a single file" line',
 
 await is('the three buttons at the top have the same colour', `new Set(['doc-font-btn', 'theme-btn', 'side-hide'].map((id) => getComputedStyle(document.getElementById(id)).color)).size === 1`);
 
+// The page itself never scrolls, even if something were taller than the window.
+await evaluate(`(() => { const d = document.createElement('div'); d.id = '__tall'; d.style.height = '3000px'; document.querySelector('.app').after(d); })(); 1`);
+await send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: 120, y: 400, deltaX: 0, deltaY: 800 });
+await sleep(300);
+await is('scrolling over the sidebar never moves the window', `document.scrollingElement.scrollTop === 0 && getComputedStyle(document.documentElement).overflowY === 'hidden'`);
+await evaluate(`document.getElementById('__tall').remove(); 1`);
+
 c.finish(ws);

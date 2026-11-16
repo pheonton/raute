@@ -81,6 +81,10 @@
   *, *::before, *::after { box-sizing: border-box; }
   [hidden] { display: none !important; }
   html, body { height: 100%; }
+  /* Raute is exactly one window tall: the page itself never scrolls, only the
+     tree, the text and the preview do, and they do not hand scrolling on to it */
+  html, body { overflow: hidden; overscroll-behavior: none; }
+  .tree-list, .source, .preview, .start { overscroll-behavior: none; } /* no bounce at the top or bottom either */
   html { padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); }
   img { max-width: 100%; }
   body {
@@ -574,7 +578,7 @@
       --error: #b3261e;
       color-scheme: light;
     }
-    html, body { height: auto; }
+    html, body { height: auto; overflow: visible; }
     html { padding: 0; }
     body { display: block; }
     .side, .bar, .asset, .start, .source, .status, .drop, .md .front-matter { display: none !important; }
