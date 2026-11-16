@@ -50,6 +50,10 @@ sans-serif and serif (Source Serif 4), on screen and in print. The choice is
 remembered. The interface keeps its font, and a `<style>` block in a file
 still wins.
 
+In **Split**, the source and the preview scroll together, both ways: Raute
+knows which source line each paragraph, heading, picture or table comes from
+and keeps the same place at the top of both sides.
+
 ## Light and dark
 
 The theme button in the sidebar switches between **Auto** (follows the

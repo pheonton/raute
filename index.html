@@ -1847,9 +1847,12 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       var meta = parts.meta === null ? '' :
         '<details class="front-matter"><summary>Front matter</summary><pre><code>' + escapeHtml(parts.meta) + '</code></pre></details>';
       var docCss = [];
-      var html = marked.parse(parts.body, { gfm: true, walkTokens: function (token) {
+      var tokens = marked.lexer(parts.body); // no options: they would replace the extensions set up with marked.use
+      marked.walkTokens(tokens, function (token) {
         if (token.type === 'html') collectStyles(token.text, docCss);
-      } });
+      });
+      var firstLine = (text.slice(0, text.length - parts.body.length).match(/\n/g) || []).length;
+      var html = renderWithLines(tokens, firstLine);
       applyDocStyles(docCss);
       tpl.innerHTML = DOMPurify.sanitize(meta + html);
       var frag = tpl.content;
@@ -1875,6 +1878,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       output.innerHTML = '<pre><code>' + escapeHtml(text) + '</code></pre>';
     }
     updateAssetNote();
+    scrollMapChanged();
 
     var prose = parts.body.trim();
     var words = prose === '' ? 0 : prose.split(/\s+/).length;
@@ -1895,7 +1899,124 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
     viewButtons.forEach(function (b) {
       b.setAttribute('aria-pressed', String(b.dataset.view === view));
     });
+    scrollMapChanged();
   }
+
+  /* ---------- Split: source and preview scroll together ----------
+     Every top-level block of the preview carries the source line it starts
+     at (data-line). Scrolling one side finds the blocks around its top edge
+     and moves the other side to the same place in between them; long lines
+     that wrap in the source are measured with an invisible copy of it. */
+  var previewEl = document.getElementById('preview');
+  var scrollMap = null;            // [{ s: source y, p: preview y }], rising
+  var lastDriver = 'source';       // the side the user scrolled last
+  var followLock = { el: null, at: 0, until: 0 };
+  var followFrame = 0;
+  var mirror = null, mirrorKey = '', mirrorTops = null;
+
+  function renderWithLines(tokens, line) {
+    var out = '';
+    tokens.forEach(function (token) {
+      var one = [token];
+      one.links = tokens.links; // reference-style links
+      var html = marked.parser(one);
+      if (token.type !== 'space') html = html.replace(/^(\s*<[a-zA-Z][\w-]*)/, '$1 data-line="' + line + '"');
+      out += html;
+      line += (token.raw.match(/\n/g) || []).length;
+    });
+    return out;
+  }
+
+  /* y of the start of each wanted source line, wrapping included */
+  function sourceLineTops(lines) {
+    var cs = getComputedStyle(source);
+    var padL = parseFloat(cs.paddingLeft), padR = parseFloat(cs.paddingRight), padT = parseFloat(cs.paddingTop);
+    var key = source.value + '\u0000' + source.clientWidth + '\u0000' + cs.font + '\u0000' + lines.join(',');
+    if (key === mirrorKey) return mirrorTops;
+    if (!mirror) {
+      mirror = document.createElement('div');
+      mirror.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(mirror);
+    }
+    mirror.style.cssText = 'position:absolute;top:0;left:-10000px;visibility:hidden;margin:0;padding:0;border:0;box-sizing:content-box;' +
+      'white-space:pre-wrap;overflow-wrap:break-word;width:' + (source.clientWidth - padL - padR) + 'px;font:' + cs.font +
+      ';line-height:' + cs.lineHeight + ';letter-spacing:' + cs.letterSpacing + ';tab-size:' + cs.tabSize;
+    var want = new Set(lines), marks = {}, rows = source.value.split('\n'), frag = document.createDocumentFragment();
+    rows.forEach(function (row, i) {
+      if (want.has(i)) { marks[i] = document.createElement('span'); frag.appendChild(marks[i]); }
+      frag.appendChild(document.createTextNode(row + (i < rows.length - 1 ? '\n' : '')));
+    });
+    mirror.replaceChildren(frag);
+    var tops = {};
+    lines.forEach(function (l) { tops[l] = marks[l] ? marks[l].offsetTop + padT : 0; });
+    mirror.replaceChildren(); // nothing left behind, also not in print
+    mirrorKey = key;
+    mirrorTops = tops;
+    return tops;
+  }
+
+  function buildScrollMap() {
+    var anchors = Array.prototype.filter.call(output.querySelectorAll('[data-line]'), function (a) { return a.getClientRects().length; });
+    var lines = anchors.map(function (a) { return +a.dataset.line; });
+    var tops = sourceLineTops(lines);
+    var origin = previewEl.getBoundingClientRect().top - previewEl.scrollTop;
+    var sMax = source.scrollHeight - source.clientHeight, pMax = previewEl.scrollHeight - previewEl.clientHeight;
+    var map = [{ s: 0, p: 0 }];
+    anchors.forEach(function (a, i) {
+      var s = tops[lines[i]], p = a.getBoundingClientRect().top - origin, last = map[map.length - 1];
+      if (s > last.s && p > last.p && s < sMax && p < pMax) map.push({ s: s, p: p });
+    });
+    if (sMax > 0 && pMax > 0) map.push({ s: sMax, p: pMax });
+    return map;
+  }
+
+  function translate(value, from, to) {
+    var map = scrollMap;
+    for (var i = 1; i < map.length; i++) {
+      if (value <= map[i][from]) {
+        var a = map[i - 1], b = map[i], span = b[from] - a[from];
+        return a[to] + (span ? (value - a[from]) / span : 0) * (b[to] - a[to]);
+      }
+    }
+    return map[map.length - 1][to];
+  }
+
+  function follow(driver) {
+    if (panes.dataset.view !== 'split' || output.hidden) return;
+    if (!scrollMap) scrollMap = buildScrollMap();
+    if (scrollMap.length < 2) return;
+    var fromEl = driver === 'source' ? source : previewEl, toEl = driver === 'source' ? previewEl : source;
+    var target = Math.round(translate(fromEl.scrollTop, driver === 'source' ? 's' : 'p', driver === 'source' ? 'p' : 's'));
+    if (Math.abs(toEl.scrollTop - target) < 1) return;
+    toEl.scrollTop = target;
+    /* the scroll event this causes is ours, not the user's: recognised by its position */
+    followLock = { el: toEl, at: toEl.scrollTop, until: performance.now() + 500 };
+  }
+
+  function onScroll(driver, el) {
+    if (followLock.el === el && Math.abs(el.scrollTop - followLock.at) < 2 && performance.now() < followLock.until) {
+      followLock = { el: null, at: 0, until: 0 };
+      return;
+    }
+    lastDriver = driver;
+    cancelAnimationFrame(followFrame);
+    followFrame = requestAnimationFrame(function () { follow(driver); });
+  }
+  source.addEventListener('scroll', function () { onScroll('source', source); });
+  previewEl.addEventListener('scroll', function () { onScroll('preview', previewEl); });
+
+  /* Something moved (new text, a picture loaded, another width or font): measure again
+     and line the other side up with the one scrolled last. */
+  function scrollMapChanged() {
+    scrollMap = null;
+    if (panes.dataset.view !== 'split') return;
+    cancelAnimationFrame(followFrame);
+    followFrame = requestAnimationFrame(function () { follow(lastDriver); });
+  }
+  output.addEventListener('load', scrollMapChanged, true); // pictures change heights as they arrive
+  window.addEventListener('resize', scrollMapChanged);
+  if (document.fonts) document.fonts.addEventListener('loadingdone', scrollMapChanged);
+  source.addEventListener('input', function () { lastDriver = 'source'; });
 
   /* ---------- light / dark ----------
      Auto follows the system; Light and Dark override it and are remembered. */
@@ -1948,6 +2069,7 @@ Drop a `.md` file anywhere on the page to open it. If a file links to pictures s
       else localStorage.removeItem('raute-doc-font');
     } catch (e) { /* storage unavailable: applies until the app is closed */ }
     showDocFont();
+    scrollMapChanged();
   });
   showDocFont();
 
